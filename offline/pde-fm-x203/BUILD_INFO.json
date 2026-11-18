@@ -1,0 +1,13 @@
+{
+  "target": "CPython 3.10 Linux x86_64",
+  "the_well_commit": "ad50de0e8861380d7c4d62c0503c654710f026e7",
+  "the_well_source_sha256": "a190283cfbe2a1154289857d49a81395a6d57287b10258d174e91fb64b7cf2dc",
+  "vendor_packages_excluded": [
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "triton",
+    "nvidia-*"
+  ],
+  "note": "Resolver placeholders are not vendor binaries. Validate against actual cluster packages."
+}

@@ -1,0 +1,22 @@
+{
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "torch": "2.5.1+cu124",
+  "nodes": 29773,
+  "parameters": 234184,
+  "original_checkpoint_loaded_strict": true,
+  "first_forward_backward_seconds": 4.091808958910406,
+  "cached_forward_seconds": 0.02669480093754828,
+  "peak_gpu_memory_bytes": 880239616,
+  "queries": [
+    {
+      "hits": 3,
+      "misses": 1
+    },
+    {
+      "hits": 3,
+      "misses": 1
+    }
+  ],
+  "all_finite": true,
+  "note": "Local NVIDIA validation only; MetaX X203 still requires cluster preflight."
+}

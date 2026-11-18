@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/thuml/Transolver-3",
+  "commit": "ef4fee9fa08dbfc5af13f9d9b42202dfb34dba37",
+  "file": "models/Transolver_chunk_opt_matrix_mul.py",
+  "sha256": "2dc6476d64613b66e0da285e676bd87ffd6110b49ff4c2d53ed4e9013309562c",
+  "modifications": [],
+  "license_note": "No LICENSE file was present in this upstream checkout; source retained for this local research adaptation."
+}

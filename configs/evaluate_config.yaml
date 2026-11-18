@@ -1,0 +1,10 @@
+defaults:
+  - evaluate_upstream
+  - _self_
+
+evaluate:
+  experiment: runs/rotor37
+  checkpoint_path: "${evaluate.experiment}/train/best_model.pt"
+  evaluate_samples: "${evaluate.experiment}/data/raw/test.csv"
+  split: test
+  batch_size: 1

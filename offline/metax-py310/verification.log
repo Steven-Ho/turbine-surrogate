@@ -1,0 +1,76 @@
+Looking in links: /work/wheelhouse
+Processing /work/wheelhouse/numpy-1.26.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /work/wheelhouse/pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /work/wheelhouse/hydra_core-1.3.2-py3-none-any.whl
+Processing /work/wheelhouse/h5py-3.16.0-cp310-cp310-manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/vtk-9.2.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /work/wheelhouse/scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /work/wheelhouse/scikit_learn-1.7.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /work/wheelhouse/tqdm-4.70.1-py3-none-any.whl
+Processing /work/wheelhouse/einops-0.8.2-py3-none-any.whl
+Processing /work/wheelhouse/torch_geometric-2.6.1-py3-none-any.whl
+Processing /work/wheelhouse/tzdata-2026.6-py2.py3-none-any.whl
+Processing /work/wheelhouse/pytz-2026.6-py2.py3-none-any.whl
+Processing /work/wheelhouse/python_dateutil-3.0.0-py2.py3-none-any.whl
+Processing /work/wheelhouse/packaging-26.3-py3-none-any.whl
+Processing /work/wheelhouse/omegaconf-2.3.1-py3-none-any.whl
+Processing /work/wheelhouse/antlr4_python3_runtime-4.9.3-py3-none-any.whl
+Processing /work/wheelhouse/pyparsing-3.3.3-py3-none-any.whl
+Processing /work/wheelhouse/fsspec-2026.9.0-py3-none-any.whl
+Processing /work/wheelhouse/aiohttp-3.14.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/jinja2-3.1.6-py3-none-any.whl
+Processing /work/wheelhouse/requests-2.34.2-py3-none-any.whl
+Processing /work/wheelhouse/psutil-7.2.2-cp36-abi3-manylinux2010_x86_64.manylinux_2_12_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/cycler-0.12.1-py3-none-any.whl
+Processing /work/wheelhouse/fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /work/wheelhouse/kiwisolver-1.5.1-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl
+Processing /work/wheelhouse/pillow-12.3.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /work/wheelhouse/joblib-1.6.0-py3-none-any.whl
+Processing /work/wheelhouse/threadpoolctl-3.8.0-py3-none-any.whl
+Processing /work/wheelhouse/cloudpickle-3.1.2-py3-none-any.whl
+Processing /work/wheelhouse/six-1.17.0-py2.py3-none-any.whl
+Processing /work/wheelhouse/async_timeout-5.0.1-py3-none-any.whl
+Processing /work/wheelhouse/propcache-0.5.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/multidict-7.1.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
+Processing /work/wheelhouse/aiosignal-1.4.0-py3-none-any.whl
+Processing /work/wheelhouse/yarl-1.25.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/typing_extensions-4.16.0-py3-none-any.whl
+Processing /work/wheelhouse/attrs-26.1.0-py3-none-any.whl
+Processing /work/wheelhouse/aiohappyeyeballs-2.7.1-py3-none-any.whl
+Processing /work/wheelhouse/markupsafe-3.0.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/charset_normalizer-3.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /work/wheelhouse/urllib3-2.8.0-py3-none-any.whl
+Processing /work/wheelhouse/certifi-2026.10.23-py3-none-any.whl
+Processing /work/wheelhouse/idna-3.20-py3-none-any.whl
+Installing collected packages: pytz, antlr4-python3-runtime, urllib3, tzdata, typing_extensions, tqdm, threadpoolctl, six, PyYAML, pyparsing, psutil, propcache, pillow, packaging, numpy, MarkupSafe, kiwisolver, idna, fsspec, frozenlist, fonttools, einops, cycler, cloudpickle, charset_normalizer, certifi, attrs, async-timeout, aiohappyeyeballs, scipy, requests, python-dateutil, omegaconf, multidict, joblib, jinja2, h5py, contourpy, aiosignal, yarl, scikit-learn, pandas, matplotlib, hydra-core, vtk, aiohttp, torch-geometric
+Successfully installed MarkupSafe-3.0.4 PyYAML-6.0.3 aiohappyeyeballs-2.7.1 aiohttp-3.14.5 aiosignal-1.4.0 antlr4-python3-runtime-4.9.3 async-timeout-5.0.1 attrs-26.1.0 certifi-2026.10.23 charset_normalizer-3.5.2 cloudpickle-3.1.2 contourpy-1.3.2 cycler-0.12.1 einops-0.8.2 fonttools-4.65.0 frozenlist-1.8.0 fsspec-2026.9.0 h5py-3.16.0 hydra-core-1.3.2 idna-3.20 jinja2-3.1.6 joblib-1.6.0 kiwisolver-1.5.1 matplotlib-3.10.9 multidict-7.1.0 numpy-1.26.4 omegaconf-2.3.1 packaging-26.3 pandas-2.3.3 pillow-12.3.0 propcache-0.5.4 psutil-7.2.2 pyparsing-3.3.3 python-dateutil-3.0.0 pytz-2026.6 requests-2.34.2 scikit-learn-1.7.2 scipy-1.15.3 six-1.17.0 threadpoolctl-3.8.0 torch-geometric-2.6.1 tqdm-4.70.1 typing_extensions-4.16.0 tzdata-2026.6 urllib3-2.8.0 vtk-9.2.6 yarl-1.25.1
+Looking in links: /work/wheelhouse
+Processing /work/wheelhouse/setuptools-84.2.1-py3-none-any.whl
+Processing /work/wheelhouse/wheel-0.48.0-py3-none-any.whl
+Requirement already satisfied: packaging>=24.0 in /tmp/offline-verify/lib/python3.10/site-packages (from wheel) (26.3)
+Installing collected packages: wheel, setuptools
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 65.5.0
+    Uninstalling setuptools-65.5.0:
+      Successfully uninstalled setuptools-65.5.0
+Successfully installed setuptools-84.2.1 wheel-0.48.0
+No broken requirements found.
+PASS import numpy 1.26.4
+PASS import pandas 2.3.3
+PASS import yaml 6.0.3
+PASS import matplotlib 3.10.9
+PASS import hydra 1.3.2
+PASS import h5py 3.16.0
+PASS import vtk 9.2.6
+PASS import scipy 1.15.3
+PASS import sklearn 1.7.2
+PASS import tqdm 4.70.1
+PASS import einops 0.8.2
+PASS no ordinary PyTorch installed
+PASS PyG installed (GPU/import verification deferred to cluster)
+PASS wheel count: 49
+PASS Python: 3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:08:06) [GCC 11.3.0]

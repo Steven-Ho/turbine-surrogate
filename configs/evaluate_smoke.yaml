@@ -1,0 +1,6 @@
+defaults:
+  - evaluate_config
+  - _self_
+
+evaluate:
+  experiment: runs/rotor37_smoke

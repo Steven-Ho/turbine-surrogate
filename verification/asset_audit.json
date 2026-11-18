@@ -1,0 +1,19 @@
+{
+  "copied_files": 1114,
+  "unchanged_files": 1105,
+  "documented_modifications": [
+    "tfai/data/data_pipeline.py",
+    "tfai/mains/_shared.py",
+    "tfai/mains/train.py",
+    "tfai/prediction/adapters/base_adapter.py",
+    "tfai/prediction/adapters/image_voxel_adapter.py",
+    "tfai/processors/field/image_voxel_processor.py",
+    "tfai/training/preprocess_cache.py",
+    "configs/evaluate_config.yaml",
+    "configs/train_config.yaml"
+  ],
+  "original_vtu_files": 1000,
+  "all_copied_assets_present": true,
+  "data_and_upstream_weights_match_source_sha256": true,
+  "note": "Final five-model benchmark source/data audit"
+}

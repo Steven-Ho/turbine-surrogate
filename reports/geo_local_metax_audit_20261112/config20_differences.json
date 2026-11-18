@@ -1,0 +1,47 @@
+[
+  {
+    "key": "general.device",
+    "local": "auto",
+    "cluster": "cuda:0"
+  },
+  {
+    "key": "general.experiment",
+    "local": "runs/transolver_comparison20/GeoTransolver",
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver"
+  },
+  {
+    "key": "general.train_processed_dir",
+    "local": "runs/transolver_comparison20/GeoTransolver/data/processed",
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver/data/processed"
+  },
+  {
+    "key": "general.train_samples",
+    "local": "runs/transolver_comparison20/GeoTransolver/data/raw/samples.csv",
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver/input/samples.csv"
+  },
+  {
+    "key": "hydra.run.dir",
+    "local": null,
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver/hydra_20"
+  },
+  {
+    "key": "model.checkpoint_path",
+    "local": "runs/transolver_comparison20/GeoTransolver/train/best_model.pt",
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver/train/best_model.pt"
+  },
+  {
+    "key": "model.geotransolver_backend",
+    "local": null,
+    "cluster": "portable_torch"
+  },
+  {
+    "key": "training.require_preprocess_cache",
+    "local": true,
+    "cluster": false
+  },
+  {
+    "key": "training.resume.path",
+    "local": "runs/transolver_comparison20/GeoTransolver/train/last_checkpoint.pt",
+    "cluster": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_geo_kdtree_1455/GeoTransolver/train/last_checkpoint.pt"
+  }
+]

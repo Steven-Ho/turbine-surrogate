@@ -1,0 +1,94 @@
+{
+  "source": "/data/hesc/Projects/pde-fm-ft/.venv",
+  "method": "independent file copies of installed distributions, no symlinks",
+  "distributions": [
+    {
+      "name": "filelock",
+      "version": "3.32.5"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "networkx",
+      "version": "3.6.1"
+    },
+    {
+      "name": "MarkupSafe",
+      "version": "3.0.3"
+    },
+    {
+      "name": "Jinja2",
+      "version": "3.1.6"
+    },
+    {
+      "name": "fsspec",
+      "version": "2024.10.0"
+    },
+    {
+      "name": "nvidia-cuda-nvrtc-cu12",
+      "version": "12.4.127"
+    },
+    {
+      "name": "nvidia-cuda-runtime-cu12",
+      "version": "12.4.127"
+    },
+    {
+      "name": "nvidia-cuda-cupti-cu12",
+      "version": "12.4.127"
+    },
+    {
+      "name": "nvidia-cublas-cu12",
+      "version": "12.4.5.8"
+    },
+    {
+      "name": "nvidia-cudnn-cu12",
+      "version": "9.1.0.70"
+    },
+    {
+      "name": "nvidia-cufft-cu12",
+      "version": "11.2.1.3"
+    },
+    {
+      "name": "nvidia-curand-cu12",
+      "version": "10.3.5.147"
+    },
+    {
+      "name": "nvidia-nvjitlink-cu12",
+      "version": "12.4.127"
+    },
+    {
+      "name": "nvidia-cusparse-cu12",
+      "version": "12.3.1.170"
+    },
+    {
+      "name": "nvidia-cusolver-cu12",
+      "version": "11.6.1.9"
+    },
+    {
+      "name": "nvidia-nccl-cu12",
+      "version": "2.21.5"
+    },
+    {
+      "name": "nvidia-nvtx-cu12",
+      "version": "12.4.127"
+    },
+    {
+      "name": "triton",
+      "version": "3.1.0"
+    },
+    {
+      "name": "mpmath",
+      "version": "1.3.0"
+    },
+    {
+      "name": "sympy",
+      "version": "1.13.1"
+    },
+    {
+      "name": "torch",
+      "version": "2.5.1"
+    }
+  ]
+}

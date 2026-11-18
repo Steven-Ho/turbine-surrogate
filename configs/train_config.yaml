@@ -1,0 +1,18 @@
+defaults:
+  - train_upstream
+  - _self_
+
+general:
+  project_name: turbine-surrogate
+  experiment: runs/rotor37
+  device: auto
+  cpu_affinity_ratio: 1.0
+task:
+  variables: [Pressure]
+model:
+  type: GCN
+  scale: small
+training:
+  batch_size: 1
+  epochs: 100
+  valid_ratio: 0.1111111111111111

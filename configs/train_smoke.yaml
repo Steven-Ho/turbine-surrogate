@@ -1,0 +1,11 @@
+defaults:
+  - train_config
+  - _self_
+
+general:
+  experiment: runs/rotor37_smoke
+training:
+  valid_ratio: 0.25
+  max_steps: 2
+  validate_every: 1
+  validation_max_batches: 2

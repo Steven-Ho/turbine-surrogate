@@ -1,0 +1,70 @@
+{
+  "processor_type": "GraphProcessor",
+  "norm_type": "min_max",
+  "geometry": {
+    "coord_min": [
+      -0.0016654001083225012,
+      0.17610213160514832,
+      -0.026984339579939842
+    ],
+    "coord_max": [
+      0.04565928876399994,
+      0.2509569823741913,
+      0.025123847648501396
+    ],
+    "coord_mode": "minmax_neg1_pos1"
+  },
+  "x": {
+    "param_offset": 3,
+    "mean": [
+      1709.3792247009278,
+      367754.8780078125
+    ],
+    "std": [
+      52.02576702549585,
+      5247.613495116283
+    ],
+    "min": [
+      1620.0899658203125,
+      358808.9375
+    ],
+    "max": [
+      1799.9100341796875,
+      376691.0625
+    ],
+    "feature_indices": [
+      3,
+      4
+    ],
+    "categorical_bc_indices": [],
+    "continuous_bc_indices": []
+  },
+  "y": {
+    "mean": [
+      111134.89055913094
+    ],
+    "std": [
+      35201.24045308444
+    ],
+    "min": [
+      8079.0087890625
+    ],
+    "max": [
+      268580.03125
+    ]
+  },
+  "meta": {
+    "coord_channels": [
+      0,
+      1,
+      2
+    ],
+    "edge_attr_source": "recomputed_from_normalized_coords"
+  },
+  "mape_target_scale": {
+    "quantile": 0.95,
+    "by_variable": {
+      "Pressure": 150541.78281250002
+    }
+  }
+}

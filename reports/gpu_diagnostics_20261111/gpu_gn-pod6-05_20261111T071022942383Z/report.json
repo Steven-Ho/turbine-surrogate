@@ -1,0 +1,160 @@
+{
+  "started_utc": "20261111T071022942383Z",
+  "host": "gn-pod6-05",
+  "python": "3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:08:06) [GCC 11.3.0]",
+  "executable": "/opt/muxi/apps/tools/conda-py310-x86_64/conda/bin/python",
+  "platform": "Linux-5.15.0-25-generic-x86_64-with-glibc2.35",
+  "parameters": {
+    "output": null,
+    "inventory_only": false,
+    "buffer_mib": 256,
+    "matrix_size": 4096,
+    "repeats": 5,
+    "iterations": 20,
+    "devices": null
+  },
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": null,
+    "HIP_VISIBLE_DEVICES": null,
+    "MACA_VISIBLE_DEVICES": null,
+    "SLURM_JOB_ID": "1452",
+    "SLURM_JOB_GPUS": "0",
+    "SLURM_STEP_GPUS": "0",
+    "SLURM_CPUS_PER_TASK": "4"
+  },
+  "gpus": [
+    {
+      "logical_id": 0,
+      "name": "Mars 03",
+      "properties_raw": "_CudaDeviceProperties(name='Mars 03', major=8, minor=0, total_memory=65120MB, multi_processor_count=104, uuid=edc6a272-1e10-656b-9ffa-768652b047a5, L2_cache_size=8MB)",
+      "total_memory_bytes": 68283269120,
+      "free_memory_bytes_before": 66686623744,
+      "benchmarks": [
+        {
+          "name": "device_copy",
+          "status": "ok",
+          "median_ms": 0.3935744047164917,
+          "min_ms": 0.3924736022949219,
+          "max_ms": 0.4244351863861084,
+          "samples_ms": [
+            0.4244351863861084,
+            0.3935744047164917,
+            0.3924736022949219,
+            0.3935487985610962,
+            0.3949824094772339
+          ],
+          "buffer_bytes": 268435456,
+          "traffic_bytes_per_iteration": 536870912,
+          "GB_per_s": 1364.090005768365,
+          "correctness": "all elements equal source"
+        },
+        {
+          "name": "host_to_device",
+          "status": "ok",
+          "median_ms": 10.197235107421875,
+          "min_ms": 10.150784301757813,
+          "max_ms": 10.271577453613281,
+          "samples_ms": [
+            10.197235107421875,
+            10.183014678955079,
+            10.150784301757813,
+            10.271577453613281,
+            10.244070434570313
+          ],
+          "buffer_bytes": 268435456,
+          "traffic_bytes_per_iteration": 268435456,
+          "GB_per_s": 26.324337251440255,
+          "correctness": "all elements equal source"
+        },
+        {
+          "name": "device_to_host",
+          "status": "ok",
+          "median_ms": 8.863436889648437,
+          "min_ms": 8.824166107177735,
+          "max_ms": 8.931148529052734,
+          "samples_ms": [
+            8.904806518554688,
+            8.824166107177735,
+            8.862220764160156,
+            8.863436889648437,
+            8.931148529052734
+          ],
+          "buffer_bytes": 268435456,
+          "traffic_bytes_per_iteration": 268435456,
+          "GB_per_s": 30.285707377631855,
+          "correctness": "all elements equal source"
+        },
+        {
+          "name": "gemm_float32",
+          "status": "ok",
+          "median_ms": 3.854003143310547,
+          "min_ms": 3.8536449432373048,
+          "max_ms": 3.85428466796875,
+          "samples_ms": [
+            3.854105758666992,
+            3.854003143310547,
+            3.8536449432373048,
+            3.8538368225097654,
+            3.85428466796875
+          ],
+          "matrix_size": 4096,
+          "dtype": "torch.float32",
+          "tf32_allowed": false,
+          "TFLOP_per_s": 35.66134960490495,
+          "reference_relative_error": 1.1007261994630703e-06
+        },
+        {
+          "name": "gemm_float16",
+          "status": "ok",
+          "median_ms": 0.5082367897033692,
+          "min_ms": 0.5081088066101074,
+          "max_ms": 0.5156223773956299,
+          "samples_ms": [
+            0.5156223773956299,
+            0.5082111835479737,
+            0.5082367897033692,
+            0.5081088066101074,
+            0.508351993560791
+          ],
+          "matrix_size": 4096,
+          "dtype": "torch.float16",
+          "tf32_allowed": false,
+          "TFLOP_per_s": 270.42307101029786,
+          "reference_relative_error": 0.0002293483164058486
+        },
+        {
+          "name": "gemm_bfloat16",
+          "status": "ok",
+          "median_ms": 0.5081215858459472,
+          "min_ms": 0.5080448150634765,
+          "max_ms": 0.5082367897033692,
+          "samples_ms": [
+            0.508070421218872,
+            0.5080448150634765,
+            0.5081215858459472,
+            0.5081215858459472,
+            0.5082367897033692
+          ],
+          "matrix_size": 4096,
+          "dtype": "torch.bfloat16",
+          "tf32_allowed": false,
+          "TFLOP_per_s": 270.4843826762142,
+          "reference_relative_error": 0.001545173975631492
+        }
+      ],
+      "uuid": "edc6a272-1e10-656b-9ffa-768652b047a5",
+      "major": 8,
+      "minor": 0,
+      "multi_processor_count": 104,
+      "L2_cache_size": 8388608
+    }
+  ],
+  "errors": [],
+  "torch": {
+    "version": "2.6.0+mars3.5.3.9",
+    "path": "/opt/muxi/apps/tools/conda-py310-x86_64/conda/lib/python3.10/site-packages/torch/__init__.py",
+    "cuda": "11.6",
+    "hip": null
+  },
+  "status": "complete"
+}

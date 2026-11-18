@@ -1,0 +1,14 @@
+evaluate:
+  experiment: "exp_HK612_demo"  # Same experiment directory used for training
+  checkpoint_path: ""  # Empty uses experiment/train/best_model.pt
+  evaluate_samples: ""  # Optional independent evaluation sample table; empty uses the training split selected below
+  split: "test"  # Training split: train, valid, or test
+  mape_relative_threshold: 0.001  # New checkpoints: fraction of each train-target absolute p95; legacy checkpoints retain absolute 0.001
+  output_dir: "${evaluate.experiment}/evaluate/${evaluate.split}"
+  batch_size: 1
+  plot_scatter: true
+  strict_writeback: false
+hydra:
+  run:
+    dir: "${oc.env:TFAI_PROJECT_ROOT}/.hydra/evaluate"
+  output_subdir: null

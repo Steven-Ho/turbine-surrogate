@@ -1,0 +1,18 @@
+general:
+  experiment: "exp_HK612_demo"  # 与训练使用的 experiment 保持一致
+  device: "auto"  # 预测运行设备，可选：auto、cpu、cuda、cuda:0
+
+prediction:
+  checkpoint_path: ""  # 使用与评估配置相同的检查点
+  predict_samples: "${general.experiment}/predict/data/raw/predict_samples.csv"  # 预测样本清单或样本表路径
+  processed_dir: "${general.experiment}/predict/data/processed"  # 预测预处理输出目录
+  output_dir: "${general.experiment}/predict/results"  # 预测结果输出目录
+  batch_size: 1  # 预测批大小
+  rollout_steps: 1  # 仅对 temporal autoregressive 预测生效；未配置时回退到 task.output_length
+  strict_writeback: false  # 写回降级时是否直接失败
+  persist_processed: false  # Matrix 参数型预测快路径是否保存归一化后的中间样本
+
+hydra:
+  run:
+    dir: "${oc.env:TFAI_PROJECT_ROOT}/.hydra/predict"  # Hydra 运行目录
+  output_subdir: null  # 不额外生成子目录

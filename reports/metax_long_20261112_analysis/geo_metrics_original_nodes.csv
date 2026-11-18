@@ -1,0 +1,2 @@
+model,mae_pa,rmse_pa,nrmse_range,relative_l2_percent,mape_percent,mape_valid_count,r2,node_count,best_optimizer_steps
+GeoTransolver,1140.9565815584558,1666.6053025049741,0.006430250317755818,1.4261204656105704,1.2208052305888384,2977300,0.9977609918238336,2977300,315200

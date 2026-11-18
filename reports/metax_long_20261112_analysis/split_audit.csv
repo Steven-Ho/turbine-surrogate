@@ -1,0 +1,8 @@
+model,pool_matches_local,test_matches_local,seed
+POD,True,True,42
+UNet,True,True,42
+GCN,True,True,42
+Graph_UNet,True,True,42
+Graph_Transformer,True,True,42
+Transolver_3,True,True,42
+GeoTransolver,True,True,42

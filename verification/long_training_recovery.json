@@ -1,0 +1,15 @@
+{
+  "runner_pid": 1801575,
+  "started_utc": "2026-11-09T06:55:46.787139+00:00",
+  "resumed_checkpoints": {
+    "Transolver_3": {
+      "completed_epochs": 189.0,
+      "global_step": 151200
+    },
+    "GeoTransolver": {
+      "completed_epochs": 256.0,
+      "global_step": 204800
+    }
+  },
+  "launch": "detached independent session, stdin=/dev/null"
+}

@@ -1,0 +1,48 @@
+{
+  "started_utc": "20261111T071351978826Z",
+  "host": "gn-pod6-05",
+  "python": "3.10.10 | packaged by conda-forge | (main, Mar 24 2023, 20:08:06) [GCC 11.3.0]",
+  "executable": "/opt/muxi/apps/tools/conda-py310-x86_64/conda/bin/python",
+  "platform": "Linux-5.15.0-25-generic-x86_64-with-glibc2.35",
+  "parameters": {
+    "output": null,
+    "inventory_only": true,
+    "buffer_mib": 256,
+    "matrix_size": 4096,
+    "repeats": 5,
+    "iterations": 20,
+    "devices": null
+  },
+  "environment": {
+    "CUDA_VISIBLE_DEVICES": null,
+    "HIP_VISIBLE_DEVICES": null,
+    "MACA_VISIBLE_DEVICES": null,
+    "SLURM_JOB_ID": "1454",
+    "SLURM_JOB_GPUS": "3",
+    "SLURM_STEP_GPUS": "3",
+    "SLURM_CPUS_PER_TASK": "4"
+  },
+  "gpus": [
+    {
+      "logical_id": 0,
+      "name": "Mars 03",
+      "properties_raw": "_CudaDeviceProperties(name='Mars 03', major=8, minor=0, total_memory=65120MB, multi_processor_count=104, uuid=66982fa2-5871-daee-1a68-497628db3ec2, L2_cache_size=8MB)",
+      "total_memory_bytes": 68283269120,
+      "free_memory_bytes_before": 66686619648,
+      "benchmarks": [],
+      "uuid": "66982fa2-5871-daee-1a68-497628db3ec2",
+      "major": 8,
+      "minor": 0,
+      "multi_processor_count": 104,
+      "L2_cache_size": 8388608
+    }
+  ],
+  "errors": [],
+  "torch": {
+    "version": "2.6.0+mars3.5.3.9",
+    "path": "/opt/muxi/apps/tools/conda-py310-x86_64/conda/lib/python3.10/site-packages/torch/__init__.py",
+    "cuda": "11.6",
+    "hip": null
+  },
+  "status": "complete"
+}

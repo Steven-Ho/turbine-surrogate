@@ -1,0 +1,116 @@
+{
+  "model": "GCN",
+  "variables": [
+    "Pressure"
+  ],
+  "split_counts": {
+    "train": 800,
+    "valid": 100,
+    "test": 100
+  },
+  "disjoint": true,
+  "test_metrics": {
+    "overall": {
+      "mae": 18853.386719,
+      "mse": 942854720.0,
+      "rmse": 30705.939453,
+      "nrmse": 0.118472,
+      "mape": 18.162,
+      "mape_valid_count": 2977300,
+      "mape_valid_ratio": 1.0,
+      "relative_l2": 26.275,
+      "r2": 0.239962
+    },
+    "by_variable": {
+      "Pressure": {
+        "mae": 18853.386719,
+        "mse": 942854720.0,
+        "rmse": 30705.939453,
+        "nrmse": 0.118472,
+        "mape": 18.162,
+        "mape_valid_count": 2977300,
+        "mape_valid_ratio": 1.0,
+        "relative_l2": 26.275,
+        "r2": 0.239962
+      }
+    }
+  },
+  "completed_optimizer_steps": 800,
+  "best_validation_loss": 0.013685520580038428,
+  "training_history": {
+    "train_loss": [
+      0.012329658136004583
+    ],
+    "val_loss": [
+      0.013685520580038428
+    ],
+    "train_units": [
+      800
+    ],
+    "val_units": [
+      800
+    ],
+    "schedule_unit": "step",
+    "train_loss_scope": "single_step",
+    "val_loss_scope": "single_step",
+    "rollout_horizon": 1
+  },
+  "torch": "2.5.1+cu124",
+  "checkpoint_keys": [
+    "model_state_dict",
+    "optimizer_state_dict",
+    "epoch",
+    "val_loss",
+    "best_score",
+    "early_stopping_counter",
+    "history",
+    "progress_history",
+    "progress_start_timestamp",
+    "rng_state",
+    "train_loader_generator_state",
+    "global_step",
+    "data_epoch",
+    "batch_in_epoch",
+    "steps_per_epoch",
+    "resolved_max_steps",
+    "resolved_validate_every",
+    "last_validation_step",
+    "validation_checks",
+    "validation_manifest",
+    "train_manifest",
+    "temporal_rollout",
+    "autoregressive_prediction_mode",
+    "resume_exact",
+    "sampler_state",
+    "config",
+    "norm_params",
+    "processor_state",
+    "modes",
+    "variable_manifest",
+    "evaluate_result_test"
+  ],
+  "saved_storage_devices": [
+    "cpu"
+  ],
+  "evaluated_count": 100,
+  "writeback_report": {
+    "strict": false,
+    "status": "success",
+    "evaluated": {
+      "strict": false,
+      "status": "success",
+      "expected_count": 100,
+      "success_count": 100,
+      "failed_count": 0,
+      "failures": []
+    },
+    "target": {
+      "strict": false,
+      "status": "success",
+      "expected_count": 100,
+      "success_count": 100,
+      "failed_count": 0,
+      "failures": []
+    }
+  }
+}

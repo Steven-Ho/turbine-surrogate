@@ -1,0 +1,23 @@
+defaults:
+  - train_rotor37_transolver_3
+  - _self_
+
+general:
+  experiment: runs/transolver_long/Transolver_3
+training:
+  epochs: 200
+  auto_evaluate_after_train: false
+  require_preprocess_cache: true
+  resume:
+    enabled: true
+  early_stopping:
+    patience: 60
+    monitor: val_loss
+  lr_scheduler:
+    enabled: true
+    type: plateau
+    factor: 0.5
+    patience: 8
+    threshold: 0.005
+    cooldown: 2
+    min_lr: 0.000001

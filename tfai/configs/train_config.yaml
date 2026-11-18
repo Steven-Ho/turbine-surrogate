@@ -1,0 +1,80 @@
+general:
+  project_name: "Qiyuan Steady Field Prediction"  # 项目名称
+  experiment: "exp_qiyuan"  # 实验目录或实验标识
+  seed: 42  # 随机种子
+  deterministic: false  # 是否启用确定性计算，可能降低训练速度
+  device: "auto"  # 运行设备，可选：auto、cpu、cuda、cuda:0
+  cpu_affinity_ratio: 0.5  # CPU 亲和性限制比例，full 表示不限制
+  train_samples: "${general.experiment}/data/raw/samples.csv"  # 训练样本清单或样本表路径
+  train_processed_dir: "${general.experiment}/data/processed"  # 训练预处理输出目录
+
+task:
+  type: "field"  # 任务类型，可选：scalar、field
+  mode: "steady"  # 任务模式，可选：steady、temporal
+  is_geometry_varying: false  # 几何是否随样本变化
+  local_feature_encoding: false  # 局部特征编码：false、cgns_based、vtk_based
+  field_bc: ["boundary_id"]  # vtk_based 时指定 Fields 中的边界条件字段，可为字符串或字符串列表
+  temporal_strategy: "direct"  # 时序策略，可选：direct、autoregressive
+  autoregressive_prediction_mode: "state"  # 自回归输出语义：state、increment；increment 支持 Matrix/Graph/PointCloud/ImageVoxel 及 standardization/min_max
+  input_length: 1  # 输入历史步数
+  output_length: 1  # 输出步数
+  variables: ["Pressure", "Velocity"]  # 需要预测的逻辑变量列表
+
+model:
+  type: "POD"  # 模型类型，可选：MLP、LSTM、POD、UNet、Swin_UNet、Swin_Transformer、SegFormer、GCN、DGCNN、Graph_UNet、Graph_Transformer
+  scale: "small"  # 模型规模，可选：small、base、large
+  checkpoint_path: "${general.experiment}/train/best_model.pt"  # 最优模型保存路径
+
+processor:
+  norm_type: "min_max"  # 归一化方式，可选：standardization、min_max
+  base_resolution: 50  # 基础分辨率或重采样尺度
+  graph_edge_strategy: "topology"  # 图连边策略，可选：topology、knn、radius
+  graph_knn_k: 8  # knn 策略下每个节点选择的近邻数
+  graph_radius: 1.1  # radius 策略下的邻域半径
+  graph_max_edges_per_node: 6  # topology 或 radius 策略下图节点最大连边数，radius 模式下也用于限制候选邻居数
+
+training:
+  batch_size: 1  # 完整样本等价批大小；开启图分块后会折算为子图批大小
+  epochs: 2  # 旧配置兼容字段，max_steps 为空时表示训练轮数
+  max_steps: null  # 总 optimizer 更新次数；为空时按 epochs 推导
+  validate_every: null  # 验证间隔（optimizer step）；为空时每完整遍历训练集验证一次
+  validation_max_batches: null  # 单次验证最多使用的 batch 数；为空时完整验证
+  auto_evaluate_after_train: true  # 训练结束后是否自动完整评估并回写最佳模型
+  temporal_rollout:
+    horizon: 50  # 1 为单步；大于 1 时启用 H 步自由滚动训练/训练期验证
+    checkpoint_segments: 0  # 时间维检查点段数；0 关闭，仅已支持的图、PointCloud、ImageVoxel 训练期生效
+    horizon_weighting: "uniform"  # 首版仅支持 uniform
+    horizon_weight_gamma: 1.0  # 为后续指数步权重预留
+    training_noise: false  # 训练期向非边界动态状态注入归一化尺度噪声
+    training_noise_alpha: 0.01  # 噪声相对强度；仅 training_noise=true 时生效，范围 (0, 0.1]
+    boundary_state_override: false  # 自由滚动时回写训练集识别出的静态边界状态
+  learning_rate: 0.0001  # 学习率
+  valid_ratio: 0.1  # 验证集比例
+  test_ratio: 0.1  # 测试集比例，供独立数据划分模块使用
+  resume:
+    enabled: false  # 是否从断点续训
+    path: "${general.experiment}/train/last_checkpoint.pt"  # 续训检查点路径
+  multi_stage:
+    enabled: false  # 是否启用两阶段残差训练
+    mode: "residual_additive"  # 当前固定为 residual_additive
+    stage_count: 2  # 当前固定为 2
+  graph_use_partition: false  # 是否启用图分块训练
+  graph_partition_count: 8  # 图分块数量
+  data_loader:
+    num_workers: 0  # 训练阶段 DataLoader 并行取样 worker 数
+    valid_num_workers: 0  # 验证阶段 DataLoader 并行取样 worker 数
+    pin_memory: false  # GPU 训练时可开启
+    persistent_workers: false  # num_workers>0 时复用 worker
+    prefetch_factor: 2  # 每个 worker 预取 batch 数
+    sample_cache_size: 0  # 每个 worker 的样本 LRU 缓存数；大型样本默认关闭
+  loss_function: "mse"  # 损失函数，可选：mse、mae、huber
+  critical_region_weighting: false  # 是否启用关键区域加权损失
+  early_stopping:
+    patience: 100  # 早停耐心轮数
+    monitor: "val_loss"  # 监控指标名
+  loss_curve_log_scale: true  # 是否以对数坐标绘制损失曲线
+
+hydra:
+  run:
+    dir: "${oc.env:TFAI_PROJECT_ROOT}/.hydra/train"  # Hydra 运行目录
+  output_subdir: null  # 不额外生成子目录

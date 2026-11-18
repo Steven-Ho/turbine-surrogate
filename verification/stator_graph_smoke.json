@@ -1,0 +1,26 @@
+{
+  "purpose": "interface and finite-gradient smoke only, not generalization or prediction accuracy",
+  "source_sample": "stator_case_000",
+  "region": "fluid_in",
+  "nodes": 44652,
+  "volume_cells": 145526,
+  "directed_edges": 443894,
+  "input_features": 16,
+  "output_shape": [
+    44652,
+    5
+  ],
+  "output_names": [
+    "u",
+    "v",
+    "w",
+    "p",
+    "T"
+  ],
+  "device": "cuda",
+  "optimizer_steps": 1,
+  "finite_loss": true,
+  "scaled_mse_before_step": 0.23850324749946594,
+  "targets_used_as_inputs": false,
+  "full_case_nodes": 5503387
+}

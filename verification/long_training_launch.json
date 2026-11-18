@@ -1,0 +1,51 @@
+{
+  "checks": {
+    "Transolver_3": {
+      "steps": 16002,
+      "resume_exact": true,
+      "lr": 2.5e-05,
+      "full_validation_cases": 100
+    },
+    "GeoTransolver": {
+      "steps": 16002,
+      "resume_exact": true,
+      "lr": 2.5e-05,
+      "full_validation_cases": 100
+    },
+    "POD": {
+      "steps": 16002,
+      "resume_exact": true,
+      "lr": 2.5e-05,
+      "full_validation_cases": 100
+    }
+  },
+  "regression_tests": {
+    "count": 26,
+    "all_passed": true
+  },
+  "original_checkpoints_unchanged": {
+    "Transolver_3": "3eca3e03a7e740f65410443f1644466914ea261c69e8daa96ba14f5d94278083",
+    "GeoTransolver": "a41b3d101e8f6f38833bc6d44a816475345693dd99b44b47031954f13cbeda5d",
+    "POD": "ed995d54bececb4b851b6116184e3b41ea428eab12447f85c9696770a69ea694"
+  },
+  "policy": {
+    "initial_epochs": 20,
+    "first_total_epochs": 200,
+    "max_total_epochs": 400,
+    "extension_last_epochs": 40,
+    "extension_min_relative_improvement": 0.02,
+    "plateau_patience": 8,
+    "plateau_factor": 0.5,
+    "plateau_relative_threshold": 0.005,
+    "plateau_cooldown": 2,
+    "min_lr": 1e-06,
+    "early_stopping_patience": 60,
+    "test_scheduling": "only after validation-selected training completes"
+  },
+  "code_sha256": {
+    "scripts/run_long_training.py": "41b2210bac4bd5039adc95e929af5e555e4aef9b155d28ca1eb95f99601ef25a",
+    "scripts/report_long_training.py": "f68fc6c085a9e49070abd053f256595d08968163f0ec12940960692b805a30b1",
+    "tfai/training/optimization.py": "727550535cf4afc959c2e954d251124853e779dba5cc5b8113bde71c39dd3551",
+    "tfai/training/trainer.py": "6b6495f1b1406d2bcce90807368a82767f3eba9dd3d8bca80f2310d9a3e2b749"
+  }
+}

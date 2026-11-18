@@ -1,0 +1,12 @@
+{
+  "python": "3.11.16",
+  "torch": "2.5.1+cu124",
+  "cuda_runtime": "12.4",
+  "cuda_available": true,
+  "gpus": [
+    "NVIDIA GeForce RTX 3090",
+    "NVIDIA GeForce RTX 3090",
+    "NVIDIA GeForce RTX 3090"
+  ],
+  "gpu_process_snapshot": "661248, .venv/bin/python, 878 MiB\n"
+}

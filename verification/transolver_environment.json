@@ -1,0 +1,27 @@
+{
+  "versions": {
+    "torch": "2.5.1",
+    "torchvision": "0.20.1",
+    "numpy": "1.26.4",
+    "nvidia-physicsnemo": "2.0.0",
+    "warp-lang": "1.9.0",
+    "vtk": "9.2.6",
+    "torch-geometric": "2.6.1"
+  },
+  "physicsnemo_wheel_sha256": "fcea6ac198a2925ab81c3f62011225f53b73e1212e5364aac939ab599c0dfd9d",
+  "torch_cuda_version": "12.4",
+  "transolver3": {
+    "repository": "https://github.com/thuml/Transolver-3",
+    "commit": "ef4fee9fa08dbfc5af13f9d9b42202dfb34dba37",
+    "file": "models/Transolver_chunk_opt_matrix_mul.py",
+    "sha256": "2dc6476d64613b66e0da285e676bd87ffd6110b49ff4c2d53ed4e9013309562c",
+    "modifications": [],
+    "license_note": "No LICENSE file was present in this upstream checkout; source retained for this local research adaptation."
+  },
+  "adapter_tests": {
+    "count": 20,
+    "all_passed": true,
+    "official_geotransolver_gpu_test_skipped": false
+  },
+  "pip_check": "No broken requirements found."
+}

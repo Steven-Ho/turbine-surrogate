@@ -1,0 +1,530 @@
+{
+  "models": [
+    {
+      "model": "POD",
+      "state": "complete",
+      "latest_validated_epoch": 200,
+      "best_validation_loss": 0.000115,
+      "last_train_loss": 0.000108,
+      "last_val_loss": 0.000115,
+      "training_seconds_total_completed_stages": 624.03,
+      "task_seconds": 1281.6417973041534,
+      "test_seconds": 103.26485558110289,
+      "rmse_pa": "3752.577374373856",
+      "mape_percent": "2.69373638594377",
+      "r2": "0.9886485988278566",
+      "test_best_epoch": 191.0,
+      "local_long_rmse": "3751.8045831957074",
+      "rmse_change_vs_local_long_percent": 0.020597852606973888,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 83
+    },
+    {
+      "model": "UNet",
+      "state": "complete",
+      "latest_validated_epoch": 96,
+      "best_validation_loss": 0.001545,
+      "last_train_loss": 0.001466,
+      "last_val_loss": 0.001653,
+      "training_seconds_total_completed_stages": 2858.09,
+      "task_seconds": 3509.0722591876984,
+      "test_seconds": 158.61203351407312,
+      "rmse_pa": "25331.826662788946",
+      "mape_percent": "18.99754555962254",
+      "r2": "0.4827229908114027",
+      "test_best_epoch": 36.0,
+      "local_long_rmse": null,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 36
+    },
+    {
+      "model": "GCN",
+      "state": "training_400",
+      "latest_validated_epoch": 318,
+      "best_validation_loss": 0.000152,
+      "last_train_loss": 0.000141,
+      "last_val_loss": 0.000153,
+      "training_seconds_total_completed_stages": 12794.11,
+      "task_seconds": null,
+      "test_seconds": null,
+      "rmse_pa": null,
+      "mape_percent": null,
+      "r2": null,
+      "test_best_epoch": null,
+      "local_long_rmse": null,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_400_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 302
+    },
+    {
+      "model": "Graph_UNet",
+      "state": "complete",
+      "latest_validated_epoch": 148,
+      "best_validation_loss": 0.007119,
+      "last_train_loss": 0.007782,
+      "last_val_loss": 0.007662,
+      "training_seconds_total_completed_stages": 10091.7,
+      "task_seconds": 11345.386868476868,
+      "test_seconds": 433.18253850890324,
+      "rmse_pa": "21853.15821203145",
+      "mape_percent": "15.437066490605211",
+      "r2": "0.6150373627332325",
+      "test_best_epoch": 88.0,
+      "local_long_rmse": null,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 88
+    },
+    {
+      "model": "Graph_Transformer",
+      "state": "complete",
+      "latest_validated_epoch": 400,
+      "best_validation_loss": 0.001169,
+      "last_train_loss": 0.001153,
+      "last_val_loss": 0.00118,
+      "training_seconds_total_completed_stages": 12163.68,
+      "task_seconds": 12837.401953220367,
+      "test_seconds": 134.25015587708913,
+      "rmse_pa": "8984.602311720286",
+      "mape_percent": "6.166211508769069",
+      "r2": "0.9349289404939123",
+      "test_best_epoch": 399.0,
+      "local_long_rmse": null,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_400_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 399
+    },
+    {
+      "model": "Transolver_3",
+      "state": "complete",
+      "latest_validated_epoch": 400,
+      "best_validation_loss": 0.000114,
+      "last_train_loss": 0.000108,
+      "last_val_loss": 0.000114,
+      "training_seconds_total_completed_stages": 51403.36,
+      "task_seconds": 52039.85655808449,
+      "test_seconds": 120.14627844514325,
+      "rmse_pa": "2727.6250992078335",
+      "mape_percent": "2.073391646996518",
+      "r2": "0.9940026483072146",
+      "test_best_epoch": 397.0,
+      "local_long_rmse": "2560.5951406031477",
+      "rmse_change_vs_local_long_percent": 6.523091290618543,
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_400_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 379
+    },
+    {
+      "model": "GeoTransolver",
+      "state": "complete",
+      "latest_validated_epoch": 400,
+      "best_validation_loss": 4.1e-05,
+      "last_train_loss": 3.7e-05,
+      "last_val_loss": 4.1e-05,
+      "training_seconds_total_completed_stages": 26106.9,
+      "task_seconds": 27172.889565229416,
+      "test_seconds": 647.5208114150446,
+      "rmse_pa": "1666.6053025049741",
+      "mape_percent": "1.2208052305888384",
+      "r2": "0.9977609918238336",
+      "test_best_epoch": 394.0,
+      "local_long_rmse": "1900.914372579209",
+      "training_log_audit": [
+        {
+          "file": "train_200_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_20_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        },
+        {
+          "file": "train_400_console.log",
+          "nonfinite_count": 0,
+          "traceback": 0,
+          "error_lines": 0
+        }
+      ],
+      "best_logged_validation_epoch": 383,
+      "rmse_change_vs_local_long_percent": -12.326124388039549
+    }
+  ],
+  "stages": [
+    {
+      "model": "POD",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 54.37,
+      "pipeline_seconds": 449.98547211289406,
+      "mean_seconds_per_epoch": 2.7184999999999997,
+      "cycle_median_seconds": 3.0,
+      "local_cycle_median_seconds": 3.0,
+      "local20_seconds": 55.44,
+      "cluster_over_local20_ratio": 0.9806998556998557
+    },
+    {
+      "model": "POD",
+      "stage": "200",
+      "completed_epochs": 200.0,
+      "additional_epochs": 180.0,
+      "training_seconds": 569.66,
+      "pipeline_seconds": 594.1058781528845,
+      "mean_seconds_per_epoch": 3.1647777777777777,
+      "cycle_median_seconds": 3.0,
+      "local_cycle_median_seconds": 3.0,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "UNet",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 592.75,
+      "pipeline_seconds": 914.8605085599702,
+      "mean_seconds_per_epoch": 29.6375,
+      "cycle_median_seconds": 29.0,
+      "local_cycle_median_seconds": 18.0,
+      "local20_seconds": 343.24,
+      "cluster_over_local20_ratio": 1.7269257662277124
+    },
+    {
+      "model": "UNet",
+      "stage": "200",
+      "completed_epochs": 96.0,
+      "additional_epochs": 76.0,
+      "training_seconds": 2265.34,
+      "pipeline_seconds": 2300.682501674164,
+      "mean_seconds_per_epoch": 29.807105263157897,
+      "cycle_median_seconds": 30.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "GCN",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 1273.92,
+      "pipeline_seconds": 1590.1504740309902,
+      "mean_seconds_per_epoch": 63.696000000000005,
+      "cycle_median_seconds": 63.0,
+      "local_cycle_median_seconds": 56.0,
+      "local20_seconds": 1121.92,
+      "cluster_over_local20_ratio": 1.1354820308043354
+    },
+    {
+      "model": "GCN",
+      "stage": "200",
+      "completed_epochs": 200.0,
+      "additional_epochs": 180.0,
+      "training_seconds": 11520.19,
+      "pipeline_seconds": 11547.1703946169,
+      "mean_seconds_per_epoch": 64.00105555555555,
+      "cycle_median_seconds": 64.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "GCN",
+      "stage": "400",
+      "completed_epochs": 318,
+      "additional_epochs": 118.0,
+      "training_seconds": null,
+      "pipeline_seconds": null,
+      "mean_seconds_per_epoch": null,
+      "cycle_median_seconds": 64.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "Graph_UNet",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 1576.25,
+      "pipeline_seconds": 1834.510380333988,
+      "mean_seconds_per_epoch": 78.8125,
+      "cycle_median_seconds": 63.0,
+      "local_cycle_median_seconds": 26.0,
+      "local20_seconds": 516.04,
+      "cluster_over_local20_ratio": 3.054511278195489
+    },
+    {
+      "model": "Graph_UNet",
+      "stage": "200",
+      "completed_epochs": 148.0,
+      "additional_epochs": 128.0,
+      "training_seconds": 8515.45,
+      "pipeline_seconds": 8555.921364829177,
+      "mean_seconds_per_epoch": 66.526953125,
+      "cycle_median_seconds": 64.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "Graph_Transformer",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 592.81,
+      "pipeline_seconds": 913.978801833,
+      "mean_seconds_per_epoch": 29.640499999999996,
+      "cycle_median_seconds": 30.0,
+      "local_cycle_median_seconds": 16.0,
+      "local20_seconds": 313.59,
+      "cluster_over_local20_ratio": 1.8903982907618226
+    },
+    {
+      "model": "Graph_Transformer",
+      "stage": "200",
+      "completed_epochs": 200.0,
+      "additional_epochs": 180.0,
+      "training_seconds": 5381.04,
+      "pipeline_seconds": 5419.175515827024,
+      "mean_seconds_per_epoch": 29.894666666666666,
+      "cycle_median_seconds": 30.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "Graph_Transformer",
+      "stage": "400",
+      "completed_epochs": 400.0,
+      "additional_epochs": 200.0,
+      "training_seconds": 6189.83,
+      "pipeline_seconds": 6236.263282897882,
+      "mean_seconds_per_epoch": 30.94915,
+      "cycle_median_seconds": 31.0,
+      "local_cycle_median_seconds": null,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "Transolver_3",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 3397.6,
+      "pipeline_seconds": 3715.0639621280134,
+      "mean_seconds_per_epoch": 169.88,
+      "cycle_median_seconds": 173.0,
+      "local_cycle_median_seconds": 71.0,
+      "local20_seconds": 1411.93,
+      "cluster_over_local20_ratio": 2.4063515896680427
+    },
+    {
+      "model": "Transolver_3",
+      "stage": "200",
+      "completed_epochs": 200.0,
+      "additional_epochs": 180.0,
+      "training_seconds": 24460.52,
+      "pipeline_seconds": 24485.408702893183,
+      "mean_seconds_per_epoch": 135.89177777777778,
+      "cycle_median_seconds": 118.0,
+      "local_cycle_median_seconds": 72.0,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null,
+      "note": "Local log resumed; 784.49 sec covers only last segment. Use cycle median, not whole-stage ratio."
+    },
+    {
+      "model": "Transolver_3",
+      "stage": "400",
+      "completed_epochs": 400.0,
+      "additional_epochs": 200.0,
+      "training_seconds": 23545.24,
+      "pipeline_seconds": 23585.265275978018,
+      "mean_seconds_per_epoch": 117.7262,
+      "cycle_median_seconds": 116.0,
+      "local_cycle_median_seconds": 70.0,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "GeoTransolver",
+      "stage": "20",
+      "completed_epochs": 20.0,
+      "additional_epochs": 20.0,
+      "training_seconds": 1346.53,
+      "pipeline_seconds": 1622.5462867920287,
+      "mean_seconds_per_epoch": 67.3265,
+      "cycle_median_seconds": 67.0,
+      "local_cycle_median_seconds": 45.0,
+      "local20_seconds": 903.29,
+      "cluster_over_local20_ratio": 1.490695125596431
+    },
+    {
+      "model": "GeoTransolver",
+      "stage": "200",
+      "completed_epochs": 200.0,
+      "additional_epochs": 180.0,
+      "training_seconds": 11844.36,
+      "pipeline_seconds": 11886.412040162133,
+      "mean_seconds_per_epoch": 65.802,
+      "cycle_median_seconds": 64.0,
+      "local_cycle_median_seconds": 46.0,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    },
+    {
+      "model": "GeoTransolver",
+      "stage": "400",
+      "completed_epochs": 400.0,
+      "additional_epochs": 200.0,
+      "training_seconds": 12916.01,
+      "pipeline_seconds": 12983.040916969068,
+      "mean_seconds_per_epoch": 64.58005,
+      "cycle_median_seconds": 62.0,
+      "local_cycle_median_seconds": 46.0,
+      "local20_seconds": null,
+      "cluster_over_local20_ratio": null
+    }
+  ],
+  "split_audit": [
+    {
+      "model": "POD",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "UNet",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "GCN",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "Graph_UNet",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "Graph_Transformer",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "Transolver_3",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    },
+    {
+      "model": "GeoTransolver",
+      "pool_matches_local": true,
+      "test_matches_local": true,
+      "seed": 42
+    }
+  ],
+  "source_zip_sha256": "03c89cd4f31e21072fd7eba3d657106c4394e943b1a1364ab29e3bb7fa876557"
+}

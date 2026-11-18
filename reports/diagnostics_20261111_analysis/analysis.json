@@ -1,0 +1,103 @@
+{
+  "source_archive": "/data/hesc/diagnostics.zip",
+  "archive_sha256": "96912cb5e1158f05c08d08641b662866b28a9c2895a3c18ae6b818023163cd90",
+  "geo": {
+    "steady_forward_backward_seconds": 11.583853454949955,
+    "steady_query_seconds": 11.524601592294252,
+    "steady_query_fraction": 0.9948851434887919,
+    "same_geometry_forward_backward_seconds": 0.05853038281202316,
+    "same_geometry_query_seconds": 0.0008428788278251886,
+    "different_to_same_geometry_ratio": 197.9118006480974
+  },
+  "kernel_blocks": [
+    {
+      "source_points": 29773,
+      "query_points": 256,
+      "cdist_seconds": 0.04820086993277073,
+      "topk_seconds": 0.0016828319057822227,
+      "note": "Single block timing; not extrapolated to the full query.",
+      "cdist_fraction_of_cdist_plus_topk": 0.9662648952712319
+    },
+    {
+      "source_points": 29773,
+      "query_points": 256,
+      "cdist_seconds": 0.04815820907242596,
+      "topk_seconds": 0.0016725929453969002,
+      "note": "Single block timing; not extrapolated to the full query.",
+      "cdist_fraction_of_cdist_plus_topk": 0.96643455698749
+    }
+  ],
+  "cpu_summary": [
+    {
+      "cpu_count": "4",
+      "thread_count": "4",
+      "mode": "disk",
+      "repeats": "2",
+      "median_mean_step_seconds": "0.13172620671568439",
+      "min_mean_step_seconds": "0.13092516131931917",
+      "max_mean_step_seconds": "0.1325272521120496",
+      "speedup_vs_first_count": "1.0",
+      "mean_data_seconds": "0.007595181062351912",
+      "mean_transfer_seconds": "0.006269033743301407",
+      "mean_compute_seconds": "0.11688360776170156",
+      "mean_effective_cpu_cores": "4.457038518488895"
+    },
+    {
+      "cpu_count": "8",
+      "thread_count": "4",
+      "mode": "disk",
+      "repeats": "2",
+      "median_mean_step_seconds": "0.136431616905611",
+      "min_mean_step_seconds": "0.13285037137102335",
+      "max_mean_step_seconds": "0.14001286244019867",
+      "speedup_vs_first_count": "0.9655108522742055",
+      "mean_data_seconds": "0.006951139501761645",
+      "mean_transfer_seconds": "0.009291551349451765",
+      "mean_compute_seconds": "0.11885811737389304",
+      "mean_effective_cpu_cores": "4.533714898379997"
+    },
+    {
+      "cpu_count": "4",
+      "thread_count": "4",
+      "mode": "memory",
+      "repeats": "2",
+      "median_mean_step_seconds": "0.1305250535858795",
+      "min_mean_step_seconds": "0.12519098855089397",
+      "max_mean_step_seconds": "0.13585911862086505",
+      "speedup_vs_first_count": "1.0",
+      "mean_data_seconds": "0.0022416848631110044",
+      "mean_transfer_seconds": "0.009097675717202946",
+      "mean_compute_seconds": "0.11837447194033301",
+      "mean_effective_cpu_cores": "4.491441518127177"
+    },
+    {
+      "cpu_count": "8",
+      "thread_count": "4",
+      "mode": "memory",
+      "repeats": "2",
+      "median_mean_step_seconds": "0.12680334830540232",
+      "min_mean_step_seconds": "0.12370682448148727",
+      "max_mean_step_seconds": "0.12989987212931736",
+      "speedup_vs_first_count": "1.0293502129889627",
+      "mean_data_seconds": "0.0018386131315492093",
+      "mean_transfer_seconds": "0.006824174786452204",
+      "mean_compute_seconds": "0.11700352703919634",
+      "mean_effective_cpu_cores": "4.628642347630323"
+    }
+  ],
+  "cpu_initial_weights_identical": true,
+  "cpu_final_loss_min": 0.01496799848973751,
+  "cpu_final_loss_max": 0.014967999421060085,
+  "cpu_interop_threads": [
+    128
+  ],
+  "cpu_four_label_effective_core_min": 4.353766062995483,
+  "cpu_four_label_effective_core_max": 4.629116973258871,
+  "limitations": [
+    "CPU tests share one 8-CPU Slurm allocation; worker changes main-thread affinity only.",
+    "OMP/MKL/intra-op stay at four; 8-thread numerical execution was not tested.",
+    "Interop configured at 128; this is pool capacity, not evidence of 128 active threads.",
+    "Four-label effective CPU >4 requires checking all per-thread affinity masks/platform CPU accounting.",
+    "Only two repeats of 100 timed steps; storage cache warmed; not a full-epoch benchmark."
+  ]
+}

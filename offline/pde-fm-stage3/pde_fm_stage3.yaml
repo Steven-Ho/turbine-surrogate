@@ -1,0 +1,56 @@
+# @package _global_
+defaults:
+  - /trainer: tiny
+  - /optimizer: muon_adamw
+  - /lr_scheduler: tiny
+  - /model: tiny_2d_focused_linear_wavelet_fourier_v1
+  - /data: active_matter
+  - /experiment: defaults
+  - /server: local
+  - /distribution: ddp
+  - /logger: none
+  - /checkpoint: defaults
+  - /finetuning_mods: defaults
+  - /physics_loss: default
+  - _self_
+
+name: pde-fm-stage3-active-matter
+seed: 0
+data_workers: 0
+finetune: false
+validation_mode: false
+automatic_setup: true
+auto_resume: false
+experiment_dir: ${oc.env:PDE_FM_RUN_ROOT}
+folder_override: ${oc.env:PDE_FM_RUN_ROOT}/training
+checkpoint_override: ''
+config_override: ''
+frozen_components: [model]
+
+data:
+  well_base_path: ${oc.env:PDE_FM_DATA_DIR}
+  module_parameters:
+    batch_size: 2
+    n_steps_input: 10
+    n_steps_output: 1
+    max_samples: 32
+    allow_sharding_in_train: true
+
+trainer:
+  max_epoch: 2
+  grad_acc_steps: 2
+  enable_amp: true
+  amp_type: float16
+  debug_mode: true
+  val_frequency: 1
+  rollout_val_frequency: 2
+  short_validation_length: 2
+  max_rollout_steps: 2
+  num_time_intervals: 1
+  log_interval: 1
+  image_validation: false
+  video_validation: false
+  skip_spectral_metrics: true
+
+checkpoint:
+  checkpoint_frequency: 1

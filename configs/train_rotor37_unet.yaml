@@ -1,0 +1,17 @@
+defaults:
+  - train_config
+  - _self_
+
+general:
+  experiment: runs/comparison20_surface/UNet
+  train_samples: runs/rotor37/data/raw/samples.csv
+model:
+  type: UNet
+  scale: small
+training:
+  epochs: 20
+  batch_size: 1
+  learning_rate: 0.0001
+  require_preprocess_cache: false
+processor:
+  surface_encoding_version: 1

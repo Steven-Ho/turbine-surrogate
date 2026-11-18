@@ -1,0 +1,382 @@
+{
+  "archive": "/data/hesc/metax_long_20261111_100428_4166078_logs.tar.gz",
+  "archive_sha256": "a1edab8078bd156fe2ffaf5fa0f03e2c3c69ce1209833116586c88e9a9f5557e",
+  "snapshot_latest_log_time_shanghai": "2026-11-11 10:21:47",
+  "models": [
+    {
+      "model": "POD",
+      "state": "training_200",
+      "error": null,
+      "slurm_job_id": "1432",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:23:00.0",
+      "cpu_affinity": [
+        251,
+        252,
+        253,
+        254
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 16000,
+          "last_step": {
+            "time": "2026-11-11 10:14:07",
+            "step": 16000,
+            "target": 16000,
+            "data_epoch": 20,
+            "batch": 800,
+            "loss": 0.000127
+          },
+          "validation_count": 20,
+          "training_start": "2026-11-11 10:13:13",
+          "recent_seconds_per_step": 0.003,
+          "validation_interval_mean_epoch_seconds": 2.6842105263157894
+        },
+        {
+          "target": 200,
+          "logged_steps": 113600,
+          "last_step": {
+            "time": "2026-11-11 10:21:45",
+            "step": 129600,
+            "target": 160000,
+            "data_epoch": 162,
+            "batch": 800,
+            "loss": 0.000148
+          },
+          "validation_count": 142,
+          "training_start": "2026-11-11 10:14:33",
+          "recent_seconds_per_step": 0.005,
+          "validation_interval_mean_epoch_seconds": 3.0425531914893615
+        }
+      ],
+      "completed_steps_in_logs": 129600,
+      "latest_validation": {
+        "timestamp": "2026-11-11 10:21:45",
+        "global_step": 129600,
+        "epoch": 162.0,
+        "train_loss": 0.000108,
+        "val_loss": 0.000115,
+        "stage": 200
+      },
+      "first_validation": {
+        "timestamp": "2026-11-11 10:13:16",
+        "global_step": 800,
+        "epoch": 1.0,
+        "train_loss": 0.019948,
+        "val_loss": 0.00026,
+        "stage": 20
+      },
+      "validation_min": 0.000115,
+      "nonfinite_count": 0,
+      "validation_rows": 162,
+      "history_csv_lines": 1,
+      "preflight_pipeline_seconds": 133.18424820899963,
+      "local20_training_seconds": 55.44,
+      "finished20_seconds": 54.37
+    },
+    {
+      "model": "UNet",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1433",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:26:00.0",
+      "cpu_affinity": [
+        247,
+        248,
+        249,
+        250
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 15851,
+          "last_step": {
+            "time": "2026-11-11 10:21:47",
+            "step": 15851,
+            "target": 16000,
+            "data_epoch": 20,
+            "batch": 651,
+            "loss": 0.001115
+          },
+          "validation_count": 19,
+          "training_start": "2026-11-11 10:12:02",
+          "recent_seconds_per_step": 0.036,
+          "validation_interval_mean_epoch_seconds": 29.22222222222222
+        }
+      ],
+      "completed_steps_in_logs": 15851,
+      "latest_validation": {
+        "timestamp": "2026-11-11 10:21:25",
+        "global_step": 15200,
+        "epoch": 19.0,
+        "train_loss": 0.001565,
+        "val_loss": 0.001588,
+        "stage": 20
+      },
+      "first_validation": {
+        "timestamp": "2026-11-11 10:12:39",
+        "global_step": 800,
+        "epoch": 1.0,
+        "train_loss": 0.003986,
+        "val_loss": 0.003426,
+        "stage": 20
+      },
+      "validation_min": 0.001573,
+      "nonfinite_count": 0,
+      "validation_rows": 19,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 133.1843831539154,
+      "local20_training_seconds": 343.24
+    },
+    {
+      "model": "GCN",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1434",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:63:00.0",
+      "cpu_affinity": [
+        243,
+        244,
+        245,
+        246
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 7394,
+          "last_step": {
+            "time": "2026-11-11 10:21:44",
+            "step": 7394,
+            "target": 16000,
+            "data_epoch": 10,
+            "batch": 194,
+            "loss": 0.008387
+          },
+          "validation_count": 9,
+          "training_start": "2026-11-11 10:11:54",
+          "recent_seconds_per_step": 0.083,
+          "validation_interval_mean_epoch_seconds": 63.875
+        }
+      ],
+      "completed_steps_in_logs": 7394,
+      "latest_validation": {
+        "timestamp": "2026-11-11 10:21:29",
+        "global_step": 7200,
+        "epoch": 9.0,
+        "train_loss": 0.008681,
+        "val_loss": 0.008267,
+        "stage": 20
+      },
+      "first_validation": {
+        "timestamp": "2026-11-11 10:12:58",
+        "global_step": 800,
+        "epoch": 1.0,
+        "train_loss": 0.012269,
+        "val_loss": 0.013773,
+        "stage": 20
+      },
+      "validation_min": 0.008267,
+      "nonfinite_count": 0,
+      "validation_rows": 9,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 133.20093250274658,
+      "local20_training_seconds": 1121.92
+    },
+    {
+      "model": "Graph_UNet",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1435",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:66:00.0",
+      "cpu_affinity": [
+        239,
+        240,
+        241,
+        242
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 0,
+          "last_step": null,
+          "validation_count": 0,
+          "training_start": "2026-11-11 10:17:21",
+          "recent_seconds_per_step": null,
+          "validation_interval_mean_epoch_seconds": null
+        }
+      ],
+      "completed_steps_in_logs": 0,
+      "latest_validation": null,
+      "first_validation": null,
+      "validation_min": null,
+      "nonfinite_count": 0,
+      "validation_rows": 0,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 521.4522664546967,
+      "local20_training_seconds": 516.04
+    },
+    {
+      "model": "Graph_Transformer",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1436",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:a3:00.0",
+      "cpu_affinity": [
+        235,
+        236,
+        237,
+        238
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 15910,
+          "last_step": {
+            "time": "2026-11-11 10:21:44",
+            "step": 15910,
+            "target": 16000,
+            "data_epoch": 20,
+            "batch": 710,
+            "loss": 0.008103
+          },
+          "validation_count": 19,
+          "training_start": "2026-11-11 10:12:01",
+          "recent_seconds_per_step": 0.036,
+          "validation_interval_mean_epoch_seconds": 29.444444444444443
+        }
+      ],
+      "completed_steps_in_logs": 15910,
+      "latest_validation": {
+        "timestamp": "2026-11-11 10:21:20",
+        "global_step": 15200,
+        "epoch": 19.0,
+        "train_loss": 0.008377,
+        "val_loss": 0.008116,
+        "stage": 20
+      },
+      "first_validation": {
+        "timestamp": "2026-11-11 10:12:30",
+        "global_step": 800,
+        "epoch": 1.0,
+        "train_loss": 0.022714,
+        "val_loss": 0.011515,
+        "stage": 20
+      },
+      "validation_min": 0.008116,
+      "nonfinite_count": 0,
+      "validation_rows": 19,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 133.19199347496033,
+      "local20_training_seconds": 313.59
+    },
+    {
+      "model": "Transolver_3",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1437",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:a4:00.0",
+      "cpu_affinity": [
+        231,
+        232,
+        233,
+        234
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 3055,
+          "last_step": {
+            "time": "2026-11-11 10:21:47",
+            "step": 3055,
+            "target": 16000,
+            "data_epoch": 4,
+            "batch": 655,
+            "loss": 0.005666
+          },
+          "validation_count": 3,
+          "training_start": "2026-11-11 10:11:58",
+          "recent_seconds_per_step": 0.186,
+          "validation_interval_mean_epoch_seconds": 156.0
+        }
+      ],
+      "completed_steps_in_logs": 3055,
+      "latest_validation": {
+        "timestamp": "2026-11-11 10:19:48",
+        "global_step": 2400,
+        "epoch": 3.0,
+        "train_loss": 0.00869,
+        "val_loss": 0.007074,
+        "stage": 20
+      },
+      "first_validation": {
+        "timestamp": "2026-11-11 10:14:36",
+        "global_step": 800,
+        "epoch": 1.0,
+        "train_loss": 0.012388,
+        "val_loss": 0.010099,
+        "stage": 20
+      },
+      "validation_min": 0.007074,
+      "nonfinite_count": 0,
+      "validation_rows": 3,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 133.20240950584412,
+      "local20_training_seconds": 1411.93
+    },
+    {
+      "model": "GeoTransolver",
+      "state": "training_20",
+      "error": null,
+      "slurm_job_id": "1430",
+      "array_job_id": "1430",
+      "gpu_bus_id": "0000:e3:00.0",
+      "cpu_affinity": [
+        227,
+        228,
+        229,
+        230
+      ],
+      "stages": [
+        {
+          "target": 20,
+          "logged_steps": 49,
+          "last_step": {
+            "time": "2026-11-11 10:21:35",
+            "step": 49,
+            "target": 16000,
+            "data_epoch": 1,
+            "batch": 49,
+            "loss": 0.013892
+          },
+          "validation_count": 0,
+          "training_start": "2026-11-11 10:12:07",
+          "recent_seconds_per_step": 11.604166666666666,
+          "validation_interval_mean_epoch_seconds": null
+        }
+      ],
+      "completed_steps_in_logs": 49,
+      "latest_validation": null,
+      "first_validation": null,
+      "validation_min": null,
+      "nonfinite_count": 0,
+      "validation_rows": 0,
+      "history_csv_lines": null,
+      "preflight_pipeline_seconds": 207.65088057518005,
+      "local20_training_seconds": 903.29
+    }
+  ],
+  "distinct_gpu_pci_devices": true,
+  "disjoint_cpu_affinity": true,
+  "limitations": [
+    "This is an in-flight log snapshot, not a live cluster inspection.",
+    "No model checkpoints or independent test predictions in the archive.",
+    "Steady epoch time is estimated from validation timestamps; local reference is full-run mean.",
+    "GeoTransolver local Warp and cluster cached Torch query paths differ."
+  ]
+}

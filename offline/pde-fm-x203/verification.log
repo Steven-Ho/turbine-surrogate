@@ -1,0 +1,103 @@
+Processing /out/wheelhouse/annotated_types-0.8.0-py3-none-any.whl
+Processing /out/wheelhouse/antlr4_python3_runtime-4.9.3-py3-none-any.whl
+Processing /out/wheelhouse/anyio-4.16.0-py3-none-any.whl
+Processing /out/wheelhouse/black-26.10.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/certifi-2026.10.23-py3-none-any.whl
+Processing /out/wheelhouse/charset_normalizer-3.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/click-8.5.1-py3-none-any.whl
+Processing /out/wheelhouse/configmypy-0.2.0-py3-none-any.whl
+Processing /out/wheelhouse/contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /out/wheelhouse/cwevals-0.0.1b1-py3-none-any.whl
+Processing /out/wheelhouse/cycler-0.12.1-py3-none-any.whl
+Processing /out/wheelhouse/distro-1.9.0-py3-none-any.whl
+Processing /out/wheelhouse/einops-0.8.2-py3-none-any.whl
+Processing /out/wheelhouse/exceptiongroup-1.3.1-py3-none-any.whl
+Processing /out/wheelhouse/filelock-4.1.0-py3-none-any.whl
+Processing /out/wheelhouse/fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /out/wheelhouse/fsspec-2024.10.0-py3-none-any.whl
+Processing /out/wheelhouse/googleapis_common_protos-1.76.0-py3-none-any.whl
+Processing /out/wheelhouse/h11-0.16.0-py3-none-any.whl
+Processing /out/wheelhouse/h5py-3.16.0-cp310-cp310-manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/hf_xet-1.8.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /out/wheelhouse/httpcore-1.0.9-py3-none-any.whl
+Processing /out/wheelhouse/httpcore2-2.14.0-py3-none-any.whl
+Processing /out/wheelhouse/httpx-0.28.1-py3-none-any.whl
+Processing /out/wheelhouse/httpx2-2.14.0-py3-none-any.whl
+Processing /out/wheelhouse/huggingface_hub-2.4.0-py3-none-any.whl
+Processing /out/wheelhouse/hydra_core-1.3.8-py3-none-any.whl
+Processing /out/wheelhouse/idna-3.20-py3-none-any.whl
+Processing /out/wheelhouse/imageio-2.38.0-py3-none-any.whl
+Processing /out/wheelhouse/iniconfig-2.3.1-py3-none-any.whl
+Processing /out/wheelhouse/kiwisolver-1.5.1-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl
+Processing /out/wheelhouse/matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /out/wheelhouse/mypy_extensions-1.2.0-py3-none-any.whl
+Processing /out/wheelhouse/neuraloperator-0.3.0-py3-none-any.whl
+Processing /out/wheelhouse/numpy-1.26.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /out/wheelhouse/omegaconf-2.3.1-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_api-1.45.2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_exporter_http_transport-0.66b2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_exporter_otlp_common-0.66b2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_exporter_otlp_proto_common-1.45.2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_exporter_otlp_proto_http-1.45.2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_proto-1.45.2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_sdk-1.45.2-py3-none-any.whl
+Processing /out/wheelhouse/opentelemetry_semantic_conventions-0.66b2-py3-none-any.whl
+Processing /out/wheelhouse/opt_einsum-3.4.0-py3-none-any.whl
+Processing /out/wheelhouse/packaging-26.3-py3-none-any.whl
+Processing /out/wheelhouse/pandas-2.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /out/wheelhouse/pathspec-1.1.1-py3-none-any.whl
+Processing /out/wheelhouse/pillow-12.3.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/platformdirs-4.12.4-py3-none-any.whl
+Processing /out/wheelhouse/plotly-5.24.1-py3-none-any.whl
+Processing /out/wheelhouse/pluggy-1.7.0-py3-none-any.whl
+Processing /out/wheelhouse/protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl
+Processing /out/wheelhouse/pydantic-2.14.3-py3-none-any.whl
+Processing /out/wheelhouse/pydantic_core-2.50.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Processing /out/wheelhouse/pygments-2.21.0-py3-none-any.whl
+Processing /out/wheelhouse/pyparsing-3.3.3-py3-none-any.whl
+Processing /out/wheelhouse/pytest-9.2.0-py3-none-any.whl
+Processing /out/wheelhouse/pytest_mock-3.17.0-py3-none-any.whl
+Processing /out/wheelhouse/python_dateutil-3.0.0-py2.py3-none-any.whl
+Processing /out/wheelhouse/pytokens-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/pytz-2026.6-py2.py3-none-any.whl
+Processing /out/wheelhouse/pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/requests-2.34.2-py3-none-any.whl
+Processing /out/wheelhouse/ruamel_yaml-0.19.1-py3-none-any.whl
+Processing /out/wheelhouse/safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /out/wheelhouse/scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Processing /out/wheelhouse/setuptools-84.2.1-py3-none-any.whl
+Processing /out/wheelhouse/six-1.17.0-py2.py3-none-any.whl
+Processing /out/wheelhouse/sniffio-1.3.1-py3-none-any.whl
+Processing /out/wheelhouse/tenacity-9.2.1-py3-none-any.whl
+Processing /out/wheelhouse/tensorly-0.9.0-py3-none-any.whl
+Processing /out/wheelhouse/tensorly_torch-0.5.0-py3-none-any.whl
+Processing /out/wheelhouse/the_well-1.2.1-py3-none-any.whl
+Processing /out/wheelhouse/timm-1.0.31-py3-none-any.whl
+Processing /out/wheelhouse/tomli-2.5.0-py3-none-any.whl
+Processing /out/wheelhouse/torch_harmonics-0.6.5-py3-none-any.whl
+Processing /out/wheelhouse/torchinfo-1.8.0-py3-none-any.whl
+Processing /out/wheelhouse/tqdm-4.70.1-py3-none-any.whl
+Processing /out/wheelhouse/truststore-0.10.5-py3-none-any.whl
+Processing /out/wheelhouse/typing_extensions-4.16.0-py3-none-any.whl
+Processing /out/wheelhouse/typing_inspection-0.4.5-py3-none-any.whl
+Processing /out/wheelhouse/tzdata-2026.6-py2.py3-none-any.whl
+Processing /out/wheelhouse/urllib3-2.8.0-py3-none-any.whl
+Processing /out/wheelhouse/wandb-0.31.0-py3-none-manylinux_2_28_x86_64.whl
+Processing /out/wheelhouse/wheel-0.48.0-py3-none-any.whl
+Processing /out/wheelhouse/xxhash-4.1.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Installing collected packages: torch-harmonics, tensorly-torch, tensorly, pytz, neuraloperator, hydra-core, configmypy, antlr4-python3-runtime, xxhash, wheel, wandb, urllib3, tzdata, typing-inspection, typing-extensions, truststore, tqdm, torchinfo, tomli, timm, the-well, tenacity, sniffio, six, setuptools, scipy, safetensors, ruamel-yaml, requests, pyyaml, pytokens, python-dateutil, pytest-mock, pytest, pyparsing, pygments, pydantic-core, pydantic, protobuf, pluggy, plotly, platformdirs, pillow, pathspec, pandas, packaging, opt-einsum, opentelemetry-semantic-conventions, opentelemetry-sdk, opentelemetry-proto, opentelemetry-exporter-otlp-proto-http, opentelemetry-exporter-otlp-proto-common, opentelemetry-exporter-otlp-common, opentelemetry-exporter-http-transport, opentelemetry-api, omegaconf, numpy, mypy-extensions, matplotlib, kiwisolver, iniconfig, imageio, idna, huggingface-hub, httpx2, httpx, httpcore2, httpcore, hf-xet, h5py, h11, googleapis-common-protos, fsspec, fonttools, filelock, exceptiongroup, einops, distro, cycler, cwevals, contourpy, click, charset-normalizer, certifi, black, anyio, annotated-types
+  Attempting uninstall: setuptools
+    Found existing installation: setuptools 65.5.0
+    Uninstalling setuptools-65.5.0:
+      Successfully uninstalled setuptools-65.5.0
+Successfully installed annotated-types-0.8.0 antlr4-python3-runtime-4.9.3 anyio-4.16.0 black-26.10.1 certifi-2026.10.23 charset-normalizer-3.5.2 click-8.5.1 configmypy-0.2.0 contourpy-1.3.2 cwevals-0.0.1b1 cycler-0.12.1 distro-1.9.0 einops-0.8.2 exceptiongroup-1.3.1 filelock-4.1.0 fonttools-4.65.0 fsspec-2024.10.0 googleapis-common-protos-1.76.0 h11-0.16.0 h5py-3.16.0 hf-xet-1.8.0 httpcore-1.0.9 httpcore2-2.14.0 httpx-0.28.1 httpx2-2.14.0 huggingface-hub-2.4.0 hydra-core-1.3.8 idna-3.20 imageio-2.38.0 iniconfig-2.3.1 kiwisolver-1.5.1 matplotlib-3.10.9 mypy-extensions-1.2.0 neuraloperator-0.3.0 numpy-1.26.4 omegaconf-2.3.1 opentelemetry-api-1.45.2 opentelemetry-exporter-http-transport-0.66b2 opentelemetry-exporter-otlp-common-0.66b2 opentelemetry-exporter-otlp-proto-common-1.45.2 opentelemetry-exporter-otlp-proto-http-1.45.2 opentelemetry-proto-1.45.2 opentelemetry-sdk-1.45.2 opentelemetry-semantic-conventions-0.66b2 opt-einsum-3.4.0 packaging-26.3 pandas-2.2.0 pathspec-1.1.1 pillow-12.3.0 platformdirs-4.12.4 plotly-5.24.1 pluggy-1.7.0 protobuf-7.36.2 pydantic-2.14.3 pydantic-core-2.50.4 pygments-2.21.0 pyparsing-3.3.3 pytest-9.2.0 pytest-mock-3.17.0 python-dateutil-3.0.0 pytokens-0.4.1 pytz-2026.6 pyyaml-6.0.3 requests-2.34.2 ruamel-yaml-0.19.1 safetensors-0.8.0 scipy-1.15.3 setuptools-84.2.1 six-1.17.0 sniffio-1.3.1 tenacity-9.2.1 tensorly-0.9.0 tensorly-torch-0.5.0 the-well-1.2.1 timm-1.0.31 tomli-2.5.0 torch-harmonics-0.6.5 torchinfo-1.8.0 tqdm-4.70.1 truststore-0.10.5 typing-extensions-4.16.0 typing-inspection-0.4.5 tzdata-2026.6 urllib3-2.8.0 wandb-0.31.0 wheel-0.48.0 xxhash-4.1.0
+/out/verify.py:18: DeprecationWarning: 
+Pyarrow will become a required dependency of pandas in the next major release of pandas (pandas 3.0),
+(to allow more performant data types, such as the Arrow string type, and better interoperability with other libraries)
+but was not found to be installed on your system.
+If this would cause problems for you,
+please provide us feedback at https://github.com/pandas-dev/pandas/issues/54466
+        
+  import numpy, scipy, h5py, hydra, pandas, matplotlib, plotly, imageio, einops, wandb
+PASS: offline install and all non-vendor dependency metadata, including The Well benchmark extras
+PASS: non-GPU dependency imports; torch/timm/model GPU execution requires cluster validation

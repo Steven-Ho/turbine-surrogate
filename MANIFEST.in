@@ -1,0 +1,9 @@
+recursive-include tfai/configs *.yaml
+recursive-include tfai *.pyd
+recursive-include tfai *.so
+recursive-include tfai *.dylib
+recursive-include tfai *.dll
+recursive-include scripts *.py
+recursive-include configs *.yaml
+include README.md
+include requirements-qiyuan.txt

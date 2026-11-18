@@ -1,0 +1,34 @@
+{
+  "package": "nvidia-physicsnemo",
+  "version": "2.0.0",
+  "source_sha256": {
+    "experimental/models/geotransolver/geotransolver.py": "a227c6cc4dc787eeec8f406022e65aeda397daf05e151215d2a53764427d5c05",
+    "experimental/models/geotransolver/gale.py": "c0a50a65eb8d87c2f0c931b7a7d1ec6b78221cb04e650fa90fc2bef432ecbc4f",
+    "experimental/models/geotransolver/context_projector.py": "ed62b3fbcb92c0ce4cdb79f2d493079f0d9ef0a708b2b805cd28572d7031d10b",
+    "nn/module/physics_attention.py": "90b242ede14f0c6d92a2cabdbc6eb9dd216d0937c7dfac1f948884715bfec6e5",
+    "nn/module/mlp_layers.py": "746c35d06bd1e734fdd633da256df2f41b8f58793dd890c22f3be2dc4544ed50",
+    "nn/module/gumbel_softmax.py": "43a93d2506d178d3721df895ca337b36e2af6bd0591cbd3932b367b92410d5f8",
+    "models/transolver/transolver.py": "d6c3fb092273e84f4b6200ad3d4a8eb2bd478a2a9e6d5c5741b86e5160254080",
+    "nn/functional/radius_search/_torch_impl.py": "ac2941d0e46b9a7da5aa6c116fce2337a17445351fb75834405ce295f48dd0bd",
+    "nn/module/ball_query.py": "b337dae2e0e3f5392def56ef4571bf0e51eb242b1d004f2eca81d00398785236"
+  },
+  "changes": [
+    "Local relative imports; no package-wide PhysicsNeMo initialization",
+    "Minimal nn.Module/metadata/type-annotation compatibility layer",
+    "Transformer Engine disabled (same as existing adapter)",
+    "Chunked cached radius query following official PyTorch backend semantics; Warp neighbor ordering can differ"
+  ],
+  "reference_url": "https://github.com/NVIDIA/physicsnemo/tree/v2.0.0/physicsnemo/experimental/models/geotransolver",
+  "optimization": {
+    "revision": "kdtree-exact-guard-v1",
+    "previous_ball_query_sha256": "94737dc9ab932d2922f4750b96fd6b1f63d0dd286e6ebe935bb398aadd30c90d",
+    "changes": [
+      "Exact SciPy cKDTree candidates instead of unconditional full N-squared distance traversal",
+      "Legacy Torch query chunks for distance ties and radius-rounding ambiguity",
+      "Content-addressed memory/disk cache keyed by both geometries, radius/K/dtype/Torch device context",
+      "Atomic uncompressed npz cache entries with ZIP CRC, shape/key/bounds validation",
+      "Fresh tensor gathering preserves gradients; no learned parameters or state-dict keys added"
+    ],
+    "verification": "Small CPU-only query/gradient/cache unit tests passed. Full X203 neighbor/output/parameter-gradient verification supplied as Slurm script; not executed locally."
+  }
+}

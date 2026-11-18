@@ -1,0 +1,20 @@
+[
+  {
+    "sample_index": 0,
+    "file": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_long_20261111_100428_4166078/GeoTransolver/data/processed/sample_553.pt",
+    "equal_to_first": true,
+    "max_abs_difference": 0.0
+  },
+  {
+    "sample_index": 1,
+    "file": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_long_20261111_100428_4166078/GeoTransolver/data/processed/sample_12.pt",
+    "equal_to_first": false,
+    "max_abs_difference": 0.048416852951049805
+  },
+  {
+    "sample_index": 2,
+    "file": "/opt/muxi/private/user/heshuncheng/Projects/turbine-surrogate/runs/metax_long_20261111_100428_4166078/GeoTransolver/data/processed/sample_267.pt",
+    "equal_to_first": false,
+    "max_abs_difference": 0.03505373001098633
+  }
+]

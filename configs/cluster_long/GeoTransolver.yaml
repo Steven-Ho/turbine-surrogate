@@ -1,0 +1,189 @@
+general:
+  project_name: turbine-surrogate
+  experiment: runs/transolver_comparison20/GeoTransolver
+  seed: 42
+  deterministic: false
+  device: auto
+  cpu_affinity_ratio: 1.0
+  train_samples: runs/transolver_comparison20/GeoTransolver/data/raw/samples.csv
+  train_processed_dir: runs/transolver_comparison20/GeoTransolver/data/processed
+task:
+  type: field
+  mode: steady
+  is_geometry_varying: false
+  local_feature_encoding: false
+  field_bc:
+  - node_type
+  temporal_strategy: autoregressive
+  autoregressive_prediction_mode: increment
+  input_length: 1
+  output_length: 1
+  variables:
+  - Pressure
+  parameter_schema:
+  - name: Omega
+    type: float
+  - name: P
+    type: float
+  input_variables:
+  - Omega
+  - P
+  output_variables:
+  - Pressure
+  logical_variables:
+  - Pressure
+  effective_variables:
+  - Pressure
+  field_component_map:
+    Pressure:
+    - Pressure
+  variable_catalog:
+    Density:
+      selection_key: Density
+      display_name: Density
+      format: vtk
+      location: point
+      array_name: Density
+      occurrence: 0
+      num_components: 1
+      component_keys:
+      - Density
+      component_display_names:
+      - Density
+      sources:
+      - channel_id: vtk:point:Density#0
+        format: vtk
+        location: point
+        array_name: Density
+        occurrence: 0
+        component_index: 0
+        num_components: 1
+        runtime_key: Density
+        display_name: Density
+        selection_key: Density
+    Pressure:
+      selection_key: Pressure
+      display_name: Pressure
+      format: vtk
+      location: point
+      array_name: Pressure
+      occurrence: 0
+      num_components: 1
+      component_keys:
+      - Pressure
+      component_display_names:
+      - Pressure
+      sources:
+      - channel_id: vtk:point:Pressure#0
+        format: vtk
+        location: point
+        array_name: Pressure
+        occurrence: 0
+        component_index: 0
+        num_components: 1
+        runtime_key: Pressure
+        display_name: Pressure
+        selection_key: Pressure
+    Temperature:
+      selection_key: Temperature
+      display_name: Temperature
+      format: vtk
+      location: point
+      array_name: Temperature
+      occurrence: 0
+      num_components: 1
+      component_keys:
+      - Temperature
+      component_display_names:
+      - Temperature
+      sources:
+      - channel_id: vtk:point:Temperature#0
+        format: vtk
+        location: point
+        array_name: Temperature
+        occurrence: 0
+        component_index: 0
+        num_components: 1
+        runtime_key: Temperature
+        display_name: Temperature
+        selection_key: Temperature
+  effective_variable_sources:
+    Pressure:
+      channel_id: vtk:point:Pressure#0
+      format: vtk
+      location: point
+      array_name: Pressure
+      occurrence: 0
+      component_index: 0
+      num_components: 1
+      runtime_key: Pressure
+      display_name: Pressure
+      selection_key: Pressure
+  point_or_cell: point
+  field_location_map:
+    Pressure: point
+  projected_point_or_cell: point
+  mixed_field_policy: majority_side
+  projection_method: mean
+  geometry_regime: static_geometry
+  geometry_motion: {}
+  point_feature_fields: []
+  point_target_fields: []
+  displacement_logical_variable: null
+  displacement_effective_variables: []
+  mesh_dimension: 2
+model:
+  type: GeoTransolver
+  scale: small
+  checkpoint_path: runs/transolver_comparison20/GeoTransolver/train/best_model.pt
+  in_channels: 5
+  out_channels: 1
+processor:
+  norm_type: min_max
+  base_resolution: 50
+  graph_edge_strategy: topology
+  graph_knn_k: 8
+  graph_radius: 1.1
+  graph_max_edges_per_node: 6
+  type: GraphProcessor
+training:
+  batch_size: 1
+  epochs: 20
+  max_steps: null
+  validate_every: null
+  validation_max_batches: null
+  auto_evaluate_after_train: false
+  temporal_rollout:
+    horizon: 50
+    checkpoint_segments: 0
+    horizon_weighting: uniform
+    horizon_weight_gamma: 1.0
+    training_noise: false
+    training_noise_alpha: 0.01
+    boundary_state_override: false
+  learning_rate: 0.0001
+  valid_ratio: 0.1111111111111111
+  test_ratio: 0.1
+  resume:
+    enabled: false
+    path: runs/transolver_comparison20/GeoTransolver/train/last_checkpoint.pt
+  multi_stage:
+    enabled: false
+    mode: residual_additive
+    stage_count: 2
+  graph_use_partition: false
+  graph_partition_count: 8
+  data_loader:
+    num_workers: 0
+    valid_num_workers: 0
+    pin_memory: false
+    persistent_workers: false
+    prefetch_factor: 2
+    sample_cache_size: 0
+  loss_function: mse
+  critical_region_weighting: false
+  early_stopping:
+    patience: 1000000
+    monitor: val_loss
+  loss_curve_log_scale: true
+  require_preprocess_cache: true

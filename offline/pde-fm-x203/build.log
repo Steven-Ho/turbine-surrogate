@@ -1,0 +1,314 @@
+Downloading pinned The Well source
+Looking in indexes: https://mirrors.aliyun.com/pypi/simple
+Processing /tmp/pde-fm-build/the_well-ad50de0e8861380d7c4d62c0503c654710f026e7
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: the_well
+  Building wheel for the_well (pyproject.toml): started
+  Building wheel for the_well (pyproject.toml): finished with status 'done'
+  Created wheel for the_well: filename=the_well-1.2.1-py3-none-any.whl size=86178 sha256=c9837beca941a3a787e0a96006762d54fde68b984479f446ba653e703d989872
+  Stored in directory: /root/.cache/pip/wheels/6a/f4/25/dff4e26791a1d9469a341d71b6a7cccdba720a35ccf9d48200
+Successfully built the_well
+Looking in indexes: https://mirrors.aliyun.com/pypi/simple
+Collecting antlr4-python3-runtime==4.9.3
+  Downloading https://mirrors.aliyun.com/pypi/packages/3e/38/7859ff46355f76f8d19459005ca000b6e7012f2f1ca597746cbcd1fbfe5e/antlr4-python3-runtime-4.9.3.tar.gz (117 kB)
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Building wheels for collected packages: antlr4-python3-runtime
+  Building wheel for antlr4-python3-runtime (setup.py): started
+  Building wheel for antlr4-python3-runtime (setup.py): finished with status 'done'
+  Created wheel for antlr4-python3-runtime: filename=antlr4_python3_runtime-4.9.3-py3-none-any.whl size=144555 sha256=992bee324edad451ab61044d5099dbcfa4da9be4f3263c98da404dcaa0b5ee64
+  Stored in directory: /root/.cache/pip/wheels/79/82/b1/b79d6e90f34257cd436860ed4f4a09f9e1ea8cd32da7046ea4
+Successfully built antlr4-python3-runtime
+Looking in indexes: https://mirrors.aliyun.com/pypi/simple
+Looking in links: /tmp/pde-fm-build/vendor-stubs, /out/wheelhouse
+Collecting einops<0.9,>=0.8 (from -r /out/requirements-pde-fm-offline.txt (line 3))
+  Downloading https://mirrors.aliyun.com/pypi/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl (65 kB)
+Collecting h5py<4,>=3.9.0 (from -r /out/requirements-pde-fm-offline.txt (line 4))
+  Downloading https://mirrors.aliyun.com/pypi/packages/cb/92/a8851d936547efe30cc0ce5245feac01f3ec6171f7899bc3f775c72030b3/h5py-3.16.0-cp310-cp310-manylinux_2_28_x86_64.whl (5.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.1/5.1 MB 22.8 MB/s eta 0:00:00
+Collecting hydra-core<2,>=1.3 (from -r /out/requirements-pde-fm-offline.txt (line 5))
+  Downloading https://mirrors.aliyun.com/pypi/packages/13/69/8e5cf7ad847538fc180fbd06e8442b8bede53ee4852458a16e24231395e9/hydra_core-1.3.8-py3-none-any.whl (168 kB)
+Collecting imageio<3,>=2.25 (from -r /out/requirements-pde-fm-offline.txt (line 6))
+  Downloading https://mirrors.aliyun.com/pypi/packages/ba/4b/87a794e51d150f62a55715c453c9afbf6103fe24afef6db26a929a8480b7/imageio-2.38.0-py3-none-any.whl (328 kB)
+Collecting matplotlib<4,>=3.8 (from -r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/fc/b7/d8bcec2626c35f96972bff656299fef4578113ea6193c8fdad324710410c/matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (8.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.8/8.8 MB 36.4 MB/s eta 0:00:00
+Collecting numpy==1.26.4 (from -r /out/requirements-pde-fm-offline.txt (line 8))
+  Downloading https://mirrors.aliyun.com/pypi/packages/4b/d7/ecf66c1cd12dc28b4040b15ab4d17b773b87fa9d29ca16125de01adb36cd/numpy-1.26.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (18.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 18.2/18.2 MB 41.0 MB/s eta 0:00:00
+Collecting pandas==2.2 (from -r /out/requirements-pde-fm-offline.txt (line 9))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b3/b3/3102c3a4abca1093e50cfec2213102a1c65c0b318a4431395d0121e6e690/pandas-2.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (13.0 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 13.0/13.0 MB 39.8 MB/s eta 0:00:00
+Collecting plotly<6,>=5.0 (from -r /out/requirements-pde-fm-offline.txt (line 10))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e5/ae/580600f441f6fc05218bd6c9d5794f4aef072a7d9093b291f1c50a9db8bc/plotly-5.24.1-py3-none-any.whl (19.1 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 19.1/19.1 MB 45.0 MB/s eta 0:00:00
+Collecting timm<2,>=1.0 (from -r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/aa/bb/b909b8f0517a8fa00ffb3a9a0ddb20da9dbe3554eb68dfc3c9a2db99db76/timm-1.0.31-py3-none-any.whl (2.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.8/2.8 MB 19.7 MB/s eta 0:00:00
+Collecting torchinfo<2,>=1.8.0 (from -r /out/requirements-pde-fm-offline.txt (line 12))
+  Downloading https://mirrors.aliyun.com/pypi/packages/72/25/973bd6128381951b23cdcd8a9870c6dcfc5606cb864df8eabd82e529f9c1/torchinfo-1.8.0-py3-none-any.whl (23 kB)
+Collecting wandb>=0.17.9 (from -r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/2a/07/5594faeaea9440be2ea01cee692573416b3997879df67f0e940bfbfc2d26/wandb-0.31.0-py3-none-manylinux_2_28_x86_64.whl (20.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 20.3/20.3 MB 48.1 MB/s eta 0:00:00
+Collecting setuptools>=68 (from -r /out/requirements-pde-fm-offline.txt (line 15))
+  Using cached https://mirrors.aliyun.com/pypi/packages/ef/55/6dc6d6bb953bdfc52519a0059592c52b6e3b8ad51cf8256dffceb55b0610/setuptools-84.2.1-py3-none-any.whl (876 kB)
+Collecting wheel (from -r /out/requirements-pde-fm-offline.txt (line 16))
+  Downloading https://mirrors.aliyun.com/pypi/packages/2e/29/69cfbb602cd91690c55d38ba9fe53e6a7e76a6fa647bf38f19c138d25449/wheel-0.48.0-py3-none-any.whl (33 kB)
+Processing /out/wheelhouse/the_well-1.2.1-py3-none-any.whl (from -r /out/requirements-pde-fm-offline.txt (line 14))
+  File was already downloaded /out/wheelhouse/the_well-1.2.1-py3-none-any.whl
+Collecting python-dateutil>=2.8.2 (from pandas==2.2->-r /out/requirements-pde-fm-offline.txt (line 9))
+  Downloading https://mirrors.aliyun.com/pypi/packages/5a/17/cebee01d1c0c1441174cf0456ddc91b280d79acb65340c05e41d77866ee8/python_dateutil-3.0.0-py2.py3-none-any.whl (94 kB)
+Collecting pytz>=2020.1 (from pandas==2.2->-r /out/requirements-pde-fm-offline.txt (line 9))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b6/25/564f3fc5b70c1398d706c51f2b1470d0ea0b1b2f96fee67877b6f5bdf3b6/pytz-2026.6-py2.py3-none-any.whl (506 kB)
+Collecting tzdata>=2022.7 (from pandas==2.2->-r /out/requirements-pde-fm-offline.txt (line 9))
+  Downloading https://mirrors.aliyun.com/pypi/packages/0a/66/9a06c2227fedfd4919f0eaaa8b94377d9730882a7e4f95823c9a331ab5e1/tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+Collecting omegaconf<2.4,>=2.2 (from hydra-core<2,>=1.3->-r /out/requirements-pde-fm-offline.txt (line 5))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a4/0e/152509871bf30df6fc38569f52a2db9b55dd41aae957adae50a053ac7778/omegaconf-2.3.1-py3-none-any.whl (79 kB)
+Processing /out/wheelhouse/antlr4_python3_runtime-4.9.3-py3-none-any.whl (from hydra-core<2,>=1.3->-r /out/requirements-pde-fm-offline.txt (line 5))
+  File was already downloaded /out/wheelhouse/antlr4_python3_runtime-4.9.3-py3-none-any.whl
+Collecting packaging (from hydra-core<2,>=1.3->-r /out/requirements-pde-fm-offline.txt (line 5))
+  Downloading https://mirrors.aliyun.com/pypi/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl (129 kB)
+Collecting pillow>=8.3.2 (from imageio<3,>=2.25->-r /out/requirements-pde-fm-offline.txt (line 6))
+  Downloading https://mirrors.aliyun.com/pypi/packages/4e/89/36f4cd76cf4baf05c50ababb976249153f18c959171c7f6ba09a6f217260/pillow-12.3.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.9 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.9/6.9 MB 34.3 MB/s eta 0:00:00
+Collecting contourpy>=1.0.1 (from matplotlib<4,>=3.8->-r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/32/5c/1ee32d1c7956923202f00cf8d2a14a62ed7517bdc0ee1e55301227fc273c/contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (325 kB)
+Collecting cycler>=0.10 (from matplotlib<4,>=3.8->-r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e7/05/c19819d5e3d95294a6f5947fb9b9629efb316b96de511b418c53d245aae6/cycler-0.12.1-py3-none-any.whl (8.3 kB)
+Collecting fonttools>=4.22.0 (from matplotlib<4,>=3.8->-r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/ee/56/151b5e81d20c63834f48ad37a0cbbbe2f9b248e38f8d10387f0cf5219244/fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.3/5.3 MB 31.8 MB/s eta 0:00:00
+Collecting kiwisolver>=1.3.1 (from matplotlib<4,>=3.8->-r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/f1/0e/9f394d693be549fa3fab62498c2778294595991047adc3dcf10aa99b91c0/kiwisolver-1.5.1-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.6 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 12.1 MB/s eta 0:00:00
+Collecting pyparsing>=3 (from matplotlib<4,>=3.8->-r /out/requirements-pde-fm-offline.txt (line 7))
+  Downloading https://mirrors.aliyun.com/pypi/packages/38/bb/d215ee7c73b61497b28a5503f9f53523f294fcc936762b7caf90e0c1c2b5/pyparsing-3.3.3-py3-none-any.whl (126 kB)
+Collecting tenacity>=6.2.0 (from plotly<6,>=5.0->-r /out/requirements-pde-fm-offline.txt (line 10))
+  Downloading https://mirrors.aliyun.com/pypi/packages/d6/26/1ff2b0721ac66a3ec5b1402b333110b352ab0a8724052ac279a7b82d40c4/tenacity-9.2.1-py3-none-any.whl (32 kB)
+Processing /tmp/pde-fm-build/vendor-stubs/torch-2.6.0+vendorplaceholder-py3-none-any.whl (from timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+Processing /tmp/pde-fm-build/vendor-stubs/torchvision-0.21.0+vendorplaceholder-py3-none-any.whl (from timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+Collecting pyyaml (from timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/7a/1e/7acc4f0e74c4b3d9531e24739e0ab832a5edf40e64fbae1a9c01941cabd7/pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (770 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.3/770.3 kB 5.0 MB/s eta 0:00:00
+Collecting huggingface_hub (from timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/d4/55/ff47f1b082ecf5f43f4bc1e3b932d68eead171dabbbd1a92666c686301d7/huggingface_hub-2.4.0-py3-none-any.whl (857 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 857.0/857.0 kB 5.2 MB/s eta 0:00:00
+Collecting safetensors (from timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/28/50/f203ff3a3ddfe19308efc83c5a3a29ed02bf786732ec35e68bf9162f3365/safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (516 kB)
+Collecting click>=8.2.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/31/7d/164b7ffc8624fe9efb4221bf9af485d5c1e41b9ae118045d2b6dc5457d8b/click-8.5.1-py3-none-any.whl (126 kB)
+Collecting cwevals==0.0.1b1 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b5/96/b3b348954f88915e60e2f1fbe6d09250584e53a20d949e55786f31dbaeb0/cwevals-0.0.1b1-py3-none-any.whl (176 kB)
+Collecting opentelemetry-api>=1.43.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a9/2d/610db864d7513158cebb8f36cc88e67e73bd6c7aa1905ef18d89e1281c81/opentelemetry_api-1.45.2-py3-none-any.whl (60 kB)
+Collecting opentelemetry-exporter-otlp-proto-http>=1.43.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/32/65/f64d7d2450217e2989714e1dee15e19bf79a77a313387abac0cac77bc10e/opentelemetry_exporter_otlp_proto_http-1.45.2-py3-none-any.whl (22 kB)
+Collecting opentelemetry-sdk>=1.43.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/9f/a5/9a3b793ef48245f2336a16beb2324c2397dbb3f987cd68942f77cca06156/opentelemetry_sdk-1.45.2-py3-none-any.whl (141 kB)
+Collecting platformdirs (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/f4/ba/223e00b885e960edd5d4b4d178c88acce019bd5b83786093681b8c393492/platformdirs-4.12.4-py3-none-any.whl (32 kB)
+Collecting protobuf!=5.28.0,!=5.29.0,<8,>=5 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/db/f3/3996583dd2906297a637af12114deddf7658af6e683fedb83be061983fb5/protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl (343 kB)
+Collecting pydantic<3,>=2.6 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/72/b8/b864503789ef5c58597d2a7b4adbee62c26440ab1e682581fc6838df8947/pydantic-2.14.3-py3-none-any.whl (494 kB)
+Collecting requests<3,>=2.0.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl (73 kB)
+Collecting typing-extensions<5,>=4.8 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Collecting xxhash>=3.0.0 (from wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/22/ea/f73f0b864b7ba9fe7b4f1270ee1c8278e0d330c6e1916e94129adb356a4b/xxhash-4.1.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (459 kB)
+Collecting anyio<5,>=3.5.0 (from cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a9/16/7757fb84c819accc7d7e9af5291b261e4abb8627ee040f99e7d35ef2457a/anyio-4.16.0-py3-none-any.whl (134 kB)
+Collecting distro<2,>=1.7.0 (from cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/12/b3/231ffd4ab1fc9d679809f356cebee130ac7daa00d6d6f3206dd4fd137e9e/distro-1.9.0-py3-none-any.whl (20 kB)
+Collecting httpx<1,>=0.23.0 (from cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl (73 kB)
+Collecting sniffio (from cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl (10 kB)
+Collecting fsspec==2024.10.0 (from the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/c6/b2/454d6e7f0158951d8a78c2e1eb4f69ae81beb8dca5fee9809c6c99e9d0d0/fsspec-2024.10.0-py3-none-any.whl (179 kB)
+Collecting neuraloperator==0.3.0 (from the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/4f/f7/348ab3c87fc72eab58fdb765fa411042a25be246599ad09731be11f42317/neuraloperator-0.3.0-py3-none-any.whl (4.0 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.0/4.0 MB 26.5 MB/s eta 0:00:00
+Collecting torch_harmonics<0.7,>=0.6 (from the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/51/40/83a1949410a546460a8baa6af9cadf8891cff7d36fe27e1d60d0d0008846/torch_harmonics-0.6.5-py3-none-any.whl (63 kB)
+Collecting configmypy (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/0d/22/d1d35a8d667592ac59b57e214ce92abd1019437f00e8362fef17d99eca2f/configmypy-0.2.0-py3-none-any.whl (14 kB)
+Collecting pytest (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/51/39/1f5d8c8877a0fa327db959c19341d4be61660de1ab6b7391f9eb805bcd67/pytest-9.2.0-py3-none-any.whl (411 kB)
+Collecting black (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/8e/57/84c7274ecf3732d85a1533ce93d0eb25b318981a26e5c98a37c8f91274a8/black-26.10.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (2.0 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 17.7 MB/s eta 0:00:00
+Collecting tensorly (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/c3/ad/83380fb3c85ddf68c509059cf328374c1878f87382070475abc72867c7ba/tensorly-0.9.0-py3-none-any.whl (7.4 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.4/7.4 MB 30.1 MB/s eta 0:00:00
+Collecting tensorly-torch (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/fb/35/2da451f342ee532bf66507c89ff3cdefc0dfbacff83a2f088811deb2df17/tensorly_torch-0.5.0-py3-none-any.whl (59 kB)
+Collecting opt-einsum (from neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/23/cd/066e86230ae37ed0be70aae89aabf03ca8d9f39c8aea0dec8029455b5540/opt_einsum-3.4.0-py3-none-any.whl (71 kB)
+Collecting googleapis-common-protos~=1.52 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/05/6d/78dc67a9e779e594b49bf62604034d3a6aa428a55afc729cafda4b7333e1/googleapis_common_protos-1.76.0-py3-none-any.whl (307 kB)
+Collecting opentelemetry-exporter-http-transport==0.66b2 (from opentelemetry-exporter-http-transport[requests]==0.66b2->opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a1/b2/c622a101f31c0e6670b82f4264c4e77c161bce415bc6fc158fda0b82e218/opentelemetry_exporter_http_transport-0.66b2-py3-none-any.whl (12 kB)
+Collecting opentelemetry-exporter-otlp-common==0.66b2 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a8/47/b3049e30b339c82e3c7ec1fc692185a5d5a3ba65a94c570bb39b2c0b8424/opentelemetry_exporter_otlp_common-0.66b2-py3-none-any.whl (12 kB)
+Collecting opentelemetry-exporter-otlp-proto-common==1.45.2 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e6/d6/0f30d38120a949aef70528f845bf539f80df62abb4b8e62fdf69c2b6df5a/opentelemetry_exporter_otlp_proto_common-1.45.2-py3-none-any.whl (15 kB)
+Collecting opentelemetry-proto==1.45.2 (from opentelemetry-exporter-otlp-proto-http>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/7e/0d/a0b8f2b9efe2ec1abdf639d3696db9b1563ebeb11d91aac08ba7341e9122/opentelemetry_proto-1.45.2-py3-none-any.whl (72 kB)
+Collecting opentelemetry-semantic-conventions==0.66b2 (from opentelemetry-sdk>=1.43.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/67/bd/6bf33ed31521c565931c037e9e81bac47c1acb000e850c6e24220e2a0c00/opentelemetry_semantic_conventions-0.66b2-py3-none-any.whl (206 kB)
+Collecting annotated-types>=0.6.0 (from pydantic<3,>=2.6->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Collecting pydantic-core==2.50.4 (from pydantic<3,>=2.6->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e3/df/cddc0729c366460763831e6087e88fc0197c78f34fc79ac993a41b5d0242/pydantic_core-2.50.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.3/2.3 MB 22.1 MB/s eta 0:00:00
+Collecting typing-inspection>=0.4.4 (from pydantic<3,>=2.6->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/de/0c/ea2544850a7c135e15033a5c7a8e7211136184b7ae63e2239d557c2b3019/typing_inspection-0.4.5-py3-none-any.whl (14 kB)
+Collecting six>=1.6 (from python-dateutil>=2.8.2->pandas==2.2->-r /out/requirements-pde-fm-offline.txt (line 9))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl (11 kB)
+Collecting charset_normalizer<4,>=2 (from requests<3,>=2.0.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/c4/9f/9f52d2886d52645987d603425482c63c5045a3005db1354a7097e5ed1ae9/charset_normalizer-3.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (271 kB)
+Collecting idna<4,>=2.5 (from requests<3,>=2.0.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl (69 kB)
+Collecting urllib3<3,>=1.26 (from requests<3,>=2.0.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/92/9d/c4e665119135114480843e7ab388fa94d8480650450e6f8e26b70d323a4c/urllib3-2.8.0-py3-none-any.whl (135 kB)
+Collecting certifi>=2023.5.7 (from requests<3,>=2.0.0->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/32/d1/a3652fe2c19134d0d15922177821d863cbd7e842d53a21bbe7e8e3a1b5ac/certifi-2026.10.23-py3-none-any.whl (135 kB)
+Processing /tmp/pde-fm-build/vendor-stubs/triton-3.2.0+vendorplaceholder-py3-none-any.whl (from torch_harmonics<0.7,>=0.6->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+Collecting filelock>=3.10.0 (from huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/ee/86/032133892a5de43b5a98200b01aadcad68cc255e274a762f08b8a76d2912/filelock-4.1.0-py3-none-any.whl (133 kB)
+Collecting hf-xet<2.0.0,>=1.6.0 (from huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/f8/1e/1e8ecc05ef034e9a95c18ed32d2ec07905a7cd2ca611a9d88e25ee1f4850/hf_xet-1.8.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 30.5 MB/s eta 0:00:00
+Collecting httpx2<3,>=2.0.0 (from huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/69/5a/469616aa8c2cbb0bb9dd67a3c18d07c01ab604cc0b236ee1c47d260c7f6e/httpx2-2.14.0-py3-none-any.whl (96 kB)
+Collecting tomli>=1.1.0 (from huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/60/3f/3e3f8fd0919249b0200c80fbc4f9a1e70be19f9883da71dfb7f8b9ab8aca/tomli-2.5.0-py3-none-any.whl (14 kB)
+Collecting tqdm>=4.42.1 (from huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl (80 kB)
+Collecting exceptiongroup>=1.0.2 (from anyio<5,>=3.5.0->cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/8a/0e/97c33bf5009bdbac74fd2beace167cab3f978feb69cc36f1ef79360d6c4e/exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+Collecting httpcore==1.* (from httpx<1,>=0.23.0->cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/7e/f5/f66802a942d491edb555dd61e3a9961140fd64c90bce1eafd741609d334d/httpcore-1.0.9-py3-none-any.whl (78 kB)
+Collecting h11>=0.16 (from httpcore==1.*->httpx<1,>=0.23.0->cwevals==0.0.1b1->wandb>=0.17.9->-r /out/requirements-pde-fm-offline.txt (line 13))
+  Downloading https://mirrors.aliyun.com/pypi/packages/04/4b/29cac41a4d98d144bf5f6d33995617b185d14b22401f75ca86f384e87ff1/h11-0.16.0-py3-none-any.whl (37 kB)
+Collecting httpcore2==2.14.0 (from httpx2<3,>=2.0.0->huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/02/06/a8d6a8f90d11b76d9086242b6bb0ee4b503473bfc8be34c2d5b067275c22/httpcore2-2.14.0-py3-none-any.whl (84 kB)
+Collecting truststore>=0.10 (from httpx2<3,>=2.0.0->huggingface_hub->timm<2,>=1.0->-r /out/requirements-pde-fm-offline.txt (line 11))
+  Downloading https://mirrors.aliyun.com/pypi/packages/51/e9/3a7820be2bb0fe53b6bc9c3be26d3d1158004e4c3ab953aa6840b955b1e9/truststore-0.10.5-py3-none-any.whl (19 kB)
+Collecting mypy-extensions>=0.4.3 (from black->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b5/99/7b1adac7e97ce7bbda34792dc6e9b2f5cc5cffd1875883f78a818b2a2687/mypy_extensions-1.2.0-py3-none-any.whl (5.1 kB)
+Collecting pathspec>=1.0.0 (from black->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl (57 kB)
+Collecting pytokens~=0.4.0 (from black->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/69/66/f6fb1007a4c3d8b682d5d65b7c1fb33257587a5f782647091e3408abe0b8/pytokens-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (259 kB)
+Collecting pytest-mock (from configmypy->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/e8/ea/47fbdc8f37410956fd445720e927589b1e2a47772c5f28109f0ce2fa26d9/pytest_mock-3.17.0-py3-none-any.whl (11 kB)
+Collecting ruamel.yaml (from configmypy->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/b8/0c/51f6841f1d84f404f92463fc2b1ba0da357ca1e3db6b7fbda26956c3b82a/ruamel_yaml-0.19.1-py3-none-any.whl (118 kB)
+Collecting iniconfig>=2 (from pytest->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/56/43/4ca9e49d27a1fcf6bece6f6aec0ea46bb9112489b93d4b688fb415457bdb/iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Collecting pluggy<2,>=1.6 (from pytest->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/40/9e/2b38731e0fc536806f16490e1a12d7f0dc2a1235aa8cc07bcc75416a7daa/pluggy-1.7.0-py3-none-any.whl (27 kB)
+Collecting pygments>=2.15 (from pytest->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl (1.3 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 9.2 MB/s eta 0:00:00
+Collecting scipy (from tensorly->neuraloperator==0.3.0->the_well[benchmark]->-r /out/requirements-pde-fm-offline.txt (line 14))
+  Downloading https://mirrors.aliyun.com/pypi/packages/8e/6d/41991e503e51fc1134502694c5fa7a1671501a17ffa12716a4a9151af3df/scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (37.7 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 37.7/37.7 MB 18.8 MB/s eta 0:00:00
+Saved /out/wheelhouse/numpy-1.26.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved /out/wheelhouse/pandas-2.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved /out/wheelhouse/einops-0.8.2-py3-none-any.whl
+Saved /out/wheelhouse/h5py-3.16.0-cp310-cp310-manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/hydra_core-1.3.8-py3-none-any.whl
+Saved /out/wheelhouse/imageio-2.38.0-py3-none-any.whl
+Saved /out/wheelhouse/matplotlib-3.10.9-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Saved /out/wheelhouse/plotly-5.24.1-py3-none-any.whl
+Saved /out/wheelhouse/timm-1.0.31-py3-none-any.whl
+Saved /out/wheelhouse/torchinfo-1.8.0-py3-none-any.whl
+Saved /out/wheelhouse/wandb-0.31.0-py3-none-manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/cwevals-0.0.1b1-py3-none-any.whl
+Saved /out/wheelhouse/fsspec-2024.10.0-py3-none-any.whl
+Saved /out/wheelhouse/neuraloperator-0.3.0-py3-none-any.whl
+Saved /out/wheelhouse/setuptools-84.2.1-py3-none-any.whl
+Saved /out/wheelhouse/wheel-0.48.0-py3-none-any.whl
+Saved /out/wheelhouse/click-8.5.1-py3-none-any.whl
+Saved /out/wheelhouse/contourpy-1.3.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved /out/wheelhouse/cycler-0.12.1-py3-none-any.whl
+Saved /out/wheelhouse/fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Saved /out/wheelhouse/kiwisolver-1.5.1-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl
+Saved /out/wheelhouse/omegaconf-2.3.1-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_api-1.45.2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_exporter_otlp_proto_http-1.45.2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_exporter_http_transport-0.66b2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_exporter_otlp_common-0.66b2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_exporter_otlp_proto_common-1.45.2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_proto-1.45.2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_sdk-1.45.2-py3-none-any.whl
+Saved /out/wheelhouse/opentelemetry_semantic_conventions-0.66b2-py3-none-any.whl
+Saved /out/wheelhouse/packaging-26.3-py3-none-any.whl
+Saved /out/wheelhouse/pillow-12.3.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl
+Saved /out/wheelhouse/pydantic-2.14.3-py3-none-any.whl
+Saved /out/wheelhouse/pydantic_core-2.50.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Saved /out/wheelhouse/pyparsing-3.3.3-py3-none-any.whl
+Saved /out/wheelhouse/python_dateutil-3.0.0-py2.py3-none-any.whl
+Saved /out/wheelhouse/pytz-2026.6-py2.py3-none-any.whl
+Saved /out/wheelhouse/pyyaml-6.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/requests-2.34.2-py3-none-any.whl
+Saved /out/wheelhouse/tenacity-9.2.1-py3-none-any.whl
+Saved /out/wheelhouse/torch-2.6.0+vendorplaceholder-py3-none-any.whl
+Saved /out/wheelhouse/torch_harmonics-0.6.5-py3-none-any.whl
+Saved /out/wheelhouse/typing_extensions-4.16.0-py3-none-any.whl
+Saved /out/wheelhouse/tzdata-2026.6-py2.py3-none-any.whl
+Saved /out/wheelhouse/xxhash-4.1.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/huggingface_hub-2.4.0-py3-none-any.whl
+Saved /out/wheelhouse/platformdirs-4.12.4-py3-none-any.whl
+Saved /out/wheelhouse/safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved /out/wheelhouse/torchvision-0.21.0+vendorplaceholder-py3-none-any.whl
+Saved /out/wheelhouse/annotated_types-0.8.0-py3-none-any.whl
+Saved /out/wheelhouse/anyio-4.16.0-py3-none-any.whl
+Saved /out/wheelhouse/certifi-2026.10.23-py3-none-any.whl
+Saved /out/wheelhouse/charset_normalizer-3.5.2-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/distro-1.9.0-py3-none-any.whl
+Saved /out/wheelhouse/filelock-4.1.0-py3-none-any.whl
+Saved /out/wheelhouse/googleapis_common_protos-1.76.0-py3-none-any.whl
+Saved /out/wheelhouse/hf_xet-1.8.0-cp38-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+Saved /out/wheelhouse/httpx-0.28.1-py3-none-any.whl
+Saved /out/wheelhouse/httpcore-1.0.9-py3-none-any.whl
+Saved /out/wheelhouse/httpx2-2.14.0-py3-none-any.whl
+Saved /out/wheelhouse/httpcore2-2.14.0-py3-none-any.whl
+Saved /out/wheelhouse/idna-3.20-py3-none-any.whl
+Saved /out/wheelhouse/six-1.17.0-py2.py3-none-any.whl
+Saved /out/wheelhouse/tomli-2.5.0-py3-none-any.whl
+Saved /out/wheelhouse/tqdm-4.70.1-py3-none-any.whl
+Saved /out/wheelhouse/typing_inspection-0.4.5-py3-none-any.whl
+Saved /out/wheelhouse/urllib3-2.8.0-py3-none-any.whl
+Saved /out/wheelhouse/black-26.10.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/configmypy-0.2.0-py3-none-any.whl
+Saved /out/wheelhouse/opt_einsum-3.4.0-py3-none-any.whl
+Saved /out/wheelhouse/pytest-9.2.0-py3-none-any.whl
+Saved /out/wheelhouse/sniffio-1.3.1-py3-none-any.whl
+Saved /out/wheelhouse/tensorly-0.9.0-py3-none-any.whl
+Saved /out/wheelhouse/tensorly_torch-0.5.0-py3-none-any.whl
+Saved /out/wheelhouse/triton-3.2.0+vendorplaceholder-py3-none-any.whl
+Saved /out/wheelhouse/exceptiongroup-1.3.1-py3-none-any.whl
+Saved /out/wheelhouse/iniconfig-2.3.1-py3-none-any.whl
+Saved /out/wheelhouse/mypy_extensions-1.2.0-py3-none-any.whl
+Saved /out/wheelhouse/pathspec-1.1.1-py3-none-any.whl
+Saved /out/wheelhouse/pluggy-1.7.0-py3-none-any.whl
+Saved /out/wheelhouse/pygments-2.21.0-py3-none-any.whl
+Saved /out/wheelhouse/pytokens-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
+Saved /out/wheelhouse/truststore-0.10.5-py3-none-any.whl
+Saved /out/wheelhouse/pytest_mock-3.17.0-py3-none-any.whl
+Saved /out/wheelhouse/ruamel_yaml-0.19.1-py3-none-any.whl
+Saved /out/wheelhouse/scipy-1.15.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+Saved /out/wheelhouse/h11-0.16.0-py3-none-any.whl
+Successfully downloaded numpy pandas einops h5py hydra-core antlr4-python3-runtime imageio matplotlib plotly timm torchinfo wandb cwevals fsspec neuraloperator setuptools wheel click contourpy cycler fonttools kiwisolver omegaconf opentelemetry-api opentelemetry-exporter-otlp-proto-http opentelemetry-exporter-http-transport opentelemetry-exporter-otlp-common opentelemetry-exporter-otlp-proto-common opentelemetry-proto opentelemetry-sdk opentelemetry-semantic-conventions packaging pillow protobuf pydantic pydantic-core pyparsing python-dateutil pytz pyyaml requests tenacity torch torch_harmonics typing-extensions tzdata xxhash huggingface_hub platformdirs safetensors the_well torchvision annotated-types anyio certifi charset_normalizer distro filelock googleapis-common-protos hf-xet httpx httpcore httpx2 httpcore2 idna six tomli tqdm typing-inspection urllib3 black configmypy opt-einsum pytest sniffio tensorly tensorly-torch triton exceptiongroup iniconfig mypy-extensions pathspec pluggy pygments pytokens truststore pytest-mock ruamel.yaml scipy h11
+WHEELHOUSE COMPLETE
