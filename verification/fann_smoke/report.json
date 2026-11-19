@@ -1,0 +1,163 @@
+{
+  "status": "passed",
+  "purpose": "format and CPU GCN smoke, not accuracy evaluation",
+  "source_nodes": 9806346,
+  "source_hex_cells": 9429120,
+  "source_connectivity_base": 1,
+  "submesh_nodes": 1230,
+  "submesh_cells": 512,
+  "directed_edges": 5734,
+  "output_names": [
+    "VelocityX",
+    "VelocityY",
+    "VelocityZ",
+    "Pressure",
+    "Temperature",
+    "Density"
+  ],
+  "device": "cpu",
+  "optimizer_steps": 3,
+  "losses": [
+    0.8655625581741333,
+    0.7465074062347412,
+    0.6426214575767517
+  ],
+  "targets_used_as_inputs": false,
+  "field_checks": {
+    "Base_3_3/Zone/GridCoordinates/CoordinateX": {
+      "length": 9806346,
+      "min": -0.25762999057769775,
+      "max": 0.22488521039485931
+    },
+    "Base_3_3/Zone/GridCoordinates/CoordinateY": {
+      "length": 9806346,
+      "min": -0.06424986571073532,
+      "max": 0.09380801022052765
+    },
+    "Base_3_3/Zone/GridCoordinates/CoordinateZ": {
+      "length": 9806346,
+      "min": 0.0,
+      "max": 0.18036893010139465
+    },
+    "Base_3_3/Zone/VertexFields/Density": {
+      "length": 9806346,
+      "min": 0.40487250685691833,
+      "max": 1.642020344734192
+    },
+    "Base_3_3/Zone/VertexFields/Pressure": {
+      "length": 9806346,
+      "min": 35854.71484375,
+      "max": 153017.53125
+    },
+    "Base_3_3/Zone/VertexFields/Temperature": {
+      "length": 9806346,
+      "min": 236.12899780273438,
+      "max": 325.5783996582031
+    },
+    "Base_3_3/Zone/VertexFields/TurbulentDissipationRate": {
+      "length": 9806346,
+      "min": 5671.26904296875,
+      "max": 15626822656.0
+    },
+    "Base_3_3/Zone/VertexFields/TurbulentDistance": {
+      "length": 9806346,
+      "min": 0.0,
+      "max": 0.10071540623903275
+    },
+    "Base_3_3/Zone/VertexFields/TurbulentEnergyKinetic": {
+      "length": 9806346,
+      "min": 9.999999747378752e-06,
+      "max": 6398.93798828125
+    },
+    "Base_3_3/Zone/VertexFields/TurbulentViscosityRatio": {
+      "length": 9806346,
+      "min": 0.0,
+      "max": 718.5518798828125
+    },
+    "Base_3_3/Zone/VertexFields/VelocityX": {
+      "length": 9806346,
+      "min": -172.14476013183594,
+      "max": 295.46539306640625
+    },
+    "Base_3_3/Zone/VertexFields/VelocityY": {
+      "length": 9806346,
+      "min": -141.5352020263672,
+      "max": 391.62786865234375
+    },
+    "Base_3_3/Zone/VertexFields/VelocityZ": {
+      "length": 9806346,
+      "min": -155.6146697998047,
+      "max": 295.5903015136719
+    },
+    "Global/AxialThrust": {
+      "length": 1,
+      "min": 1166.262939453125,
+      "max": 1166.262939453125
+    },
+    "Global/GeometryNumber": {
+      "length": 1,
+      "min": 14.0,
+      "max": 14.0
+    },
+    "Global/InletMachRelative": {
+      "length": 1,
+      "min": 0.6787599921226501,
+      "max": 0.6787599921226501
+    },
+    "Global/IsentropicEfficiency": {
+      "length": 1,
+      "min": 0.9242448210716248,
+      "max": 0.9242448210716248
+    },
+    "Global/MassFlow": {
+      "length": 1,
+      "min": 14.0800199508667,
+      "max": 14.0800199508667
+    },
+    "Global/OutletPressure": {
+      "length": 1,
+      "min": 104919.3984375,
+      "max": 104919.3984375
+    },
+    "Global/Power": {
+      "length": 1,
+      "min": -296935.3125,
+      "max": -296935.3125
+    },
+    "Global/PressureRatio": {
+      "length": 1,
+      "min": 1.1428699493408203,
+      "max": 1.1428699493408203
+    },
+    "Global/RotatingVelocityX": {
+      "length": 1,
+      "min": 1570.7960205078125,
+      "max": 1570.7960205078125
+    },
+    "Global/TemperatureRatio": {
+      "length": 1,
+      "min": 1.0443799495697021,
+      "max": 1.0443799495697021
+    },
+    "Global/Torque": {
+      "length": 1,
+      "min": -189.03489685058594,
+      "max": -189.03489685058594
+    },
+    "Global/TotalPressureRatioAbsolute": {
+      "length": 1,
+      "min": 1.2555299997329712,
+      "max": 1.2555299997329712
+    },
+    "Global/TotalTemperatureRatioAbsolute": {
+      "length": 1,
+      "min": 1.0726799964904785,
+      "max": 1.0726799964904785
+    }
+  },
+  "limitations": [
+    "First-cell submesh is not representative of the full domain.",
+    "Only GCN is exercised; seven-model faNN adaptation is not complete.",
+    "Fixed scales are debug scales, not fitted training normalization."
+  ]
+}
