@@ -2,7 +2,7 @@
 
 本流程补齐了监督学习实验协议：按 epoch 训练、完整验证、验证选优、学习率调度、早停、原子检查点、优化器/随机数/数据位置恢复、冻结后的独立测试和七模型汇总。默认申请每模型一张 GPU，七个数组任务各自训练一个模型。
 
-**整域数据模式已实现，但不是多 GPU 域并行实现。** `FANN_DOMAIN=full` 会使用所有 9,806,346 节点、9,429,120 六面体，不裁成 512 单元，也不静默降采样。是否能在 X203 单卡 64 GiB 上完成各架构的前向/反向，必须由集群实测确认。GCN/Graph_UNet/Graph_Transformer 的全图中间张量、GeoTransolver 邻域与注意力激活可能超出单卡容量；OOM 会将任务标记为 failed，不会换模型、换 CPU 或把整域结果改称局部结果。本轮未实现跨 GPU 图分区/halo 和跨 GPU 全局切片通信。
+**整域数据模式已实现，但不是多 GPU 域并行实现。** `FANN_DOMAIN=full` 会使用所有 9,806,346 节点、9,429,120 六面体，不裁成 512 单元，也不静默降采样。是否能在 X203 单卡 64 GiB 上完成各架构的前向/反向，必须由集群实测确认。旧 dense 图路径的整图边激活可能超出单卡容量；新版 bounded 图执行见文末。GeoTransolver 邻域与注意力激活仍可能超出单卡容量；OOM 会将任务标记为 failed，不会换模型、换 CPU 或把整域结果改称局部结果。本轮未实现跨 GPU 图分区/halo 和跨 GPU 全局切片通信。
 
 ## 数据准备
 
@@ -67,7 +67,7 @@ bash scripts/submit_fann_formal.sh
 
 - POD：采用磁盘 memmap 和快照 Gram 矩阵拟合训练集基底，不把所有快照堆进 RAM；默认32模态。整域约295个训练上限样本需要约77GB的快照/基底临时空间（实际按训练集大小计算），额外留20%余量。基底通过公共节点ID对应回所有节点。几何输入先按公共节点顺序池化为256个区间的坐标/壁面距离描述符，避免把约4000万维几何直接输入全连接层；该表示是独立 POD 基线，需评估表达能力。推理和续训直接重载保存基底，不重新拟合。
 - UNet：完整节点几何映射到规则体素网格，三线性解码回全部原始节点并计算损失；网格分辨率默认32，可通过 FANN_GRID 设置64/128等。默认分辨率仅为可运行基线，不保证解析近壁细节；该映射不是保守重网格化。原始节点输出是全域，但内部表示有分辨率瓶颈。
-- 三种图网络：使用完整真实六面体边，不随机删点后沿用旧连接；当前全图位于单卡，暂不具备跨卡图分区。
+- 三种图网络：使用完整真实六面体边，不随机删点后沿用旧连接。默认 bounded：GCN/Graph_Transformer 使用有限感受野 owner+halo 分区、完整算例累计梯度；Graph_UNet 保留全局TopK，CPU邻接扩展及分批稀疏乘法。均不是跨GPU域并行；dense仅供小图对照。
 - Transolver-3：整域按8192节点分块，所有块贡献共同物理切片，保持全域耦合；训练使用官方梯度检查点，但并不自动跨GPU。
 - GeoTransolver：采用已移植的 portable_torch / KDTree 查询路径，以实际xyz/壁面距离为局部输入、几何点集和全局工况为上下文。当前整域仍在单卡执行；与NVIDIA Warp版本的整域性能不能直接等同。GPU缓存默认目录由 TURBINE_GEO_CACHE_DIR 控制，千万节点邻域缓存可能很大，应计入磁盘规划。
 
@@ -146,3 +146,65 @@ python scripts/evaluate_fann.py --checkpoint runs/实际结果/POD/best.pt \
 缓存schema更新为v2，旧缓存不会被误用；内存缓存增加每个查询模块512MiB的字节上限，超出时只使用设备最近一次缓存与磁盘缓存。可设置 TURBINE_GEO_TREE_QUERY_CHUNK、TURBINE_GEO_MEMORY_CACHE_MB 调整CPU查询临时数组和缓存上限。新邻域策略记录在GeoTransolver检查点配置，策略变化会拒绝精确续训；发生在首次更新前的旧失败任务应从新输出目录重跑，而非 --resume。
 
 这是对当前 cdist 错误的修复，不是千万节点整域激活显存优化或多卡域并行。仍需在X203上重新验证完整前向/反向的容量与吞吐。
+
+## 图模型 2/3/4 显存不足的修复
+
+真实 faNN 公共网格产生 58,075,160 条有向边。一个边×64通道FP32张量恰约13.85GiB，与日志失败申请大小一致；仅约18MiB reserved-but-unallocated 并非显存碎片的证据。降低batch（已经是1）或设置expandable_segments不是这次容量问题的主要解法。
+
+新默认 `FANN_GRAPH_EXECUTION=bounded`：
+
+- **GCN / Graph_Transformer**：CPU构造公共CSR图，owner按节点编号分组。halo分别取模型的5层/3层（small）的完整感受野，所有owner覆盖整个算例且不重复。每分区反向只计owner损失，除以完整算例目标元素总数；全部分区梯度累加完成后才clip并step一次。验证/测试将所有owner预测按原序组回完整节点场。没有改变数据范围或优化器更新次数；浮点累加次序会有微小差异。
+- **Graph_UNet**：保留原模型的全局TopK选择、全局邻接平方、池化/反池化和权重。邻接扩展/归一化留在CPU，固定稀疏线性算子的前向和转置反向以边块传输到GPU，避免保留全图E×hidden消息。全局节点特征仍在GPU；CPU邻接扩展可能非常大且较慢，必须先做单步容量测试。不能保证每个几何或训练阶段都装入64GiB GPU/64G主存。
+
+参数：`FANN_GRAPH_OWNER_NODES` 默认32768（首次集群试验建议8192）；`FANN_GRAPH_EDGE_CHUNK` 默认262144。CPU拓扑/halo产物复用目录为 `TURBINE_FANN_GRAPH_CACHE`，默认 `runs/fann_graph_topology_cache_v1`。进程内分区LRU默认1GiB，通过直接训练命令的 `--graph-cache-mb` 调整。没有把完整图边表和所有算例一次性搬到GPU。bounded图模型初始化后和每个完整算例更新后都会保存last.pt，避免长整域epoch在作业超时后丢失整轮；分区中途不保存半次优化器更新。
+
+先只重试失败的三模型，并保留原预处理：
+
+```
+git pull --ff-only origin master
+export FANN_SPLITS="$PWD/runs/fann_prepared_20261119_202344/splits.json"
+export FANN_RUN_ROOT="$PWD/runs/fann_graph_capacity_v1"
+export FANN_DOMAIN=full
+export FANN_GRAPH_EXECUTION=bounded
+export FANN_GRAPH_OWNER_NODES=8192
+export FANN_MAX_UPDATES=1
+unset FANN_RESUME FANN_STEPS
+sbatch --array=2,4 scripts/slurm_fann_array.sh
+# Graph_UNet将压力部分转移到主存，首次可单独申请较多主存；仍需实测：
+sbatch --array=3 --mem=128G scripts/slurm_fann_array.sh
+```
+
+一个完整算例更新后会保存last.pt，并以130退出，日志写明安全停止和GPU峰值；这是主动容量测试的预期退出，不是OOM。若希望降低更小分区的峰值，可继续减小owner数；halo占比/计算和I/O会增加。
+
+只有三者容量测试均通过后，保持相同数据、模型和graph设置续训：
+
+```
+unset FANN_MAX_UPDATES
+export FANN_RESUME=1
+export FANN_EPOCHS=400
+sbatch --array=2,4 scripts/slurm_fann_array.sh
+sbatch --array=3 --mem=128G scripts/slurm_fann_array.sh
+```
+
+新bounded与旧dense配置不混作精确续训；旧任务首次更新前失败的，从新结果目录开始。已有其他模型结果不覆盖。需要最终七模型汇总时，应将匹配同一数据签名的模型结果收集到同一个根目录，再运行compare_fann.py；不同实验不要混用。
+
+验证：小网格CPU/GPU原始/低显存输出与参数梯度对照；全节点owner覆盖；常量稀疏算子转置梯度；正式训练恢复和分区中途SIGTERM不产生半次优化器更新。真实981万节点网格上，8192个owner的首分区在RTX3090上完成前向反向：GCN峰值约2.82GiB，Graph_Transformer约0.69GiB。这个测量只覆盖首分区，不能等同完整算例或X203峰值保证。
+
+后续又在同一个真实整域样本上完成更大范围验证（单样本归一化，仅容量/梯度验证，不是泛化精度）：
+
+| 模型 | 验证范围 | RTX3090峰值显存 | 单次耗时 |
+|---|---|---:|---:|
+| GCN | 全部owner、完整反向及1次Adam更新；owner=32768 | 11.79GiB | 96.6s |
+| Graph_Transformer | 全部owner、完整反向及1次Adam更新；owner=32768 | 2.93GiB | 32.6s |
+| Graph_UNet | 全域前向/反向，梯度有限 | 17.78GiB | 393.3s |
+
+Graph_UNet进程峰值主存约35.4GiB；第三层扩展约17.1亿边。CPU全局稀疏计算很慢，因此这条路径只解决容量，不代表适合直接投入400轮或满足三天训练目标。不同几何、训练状态和X203后端仍须实测，128G主存为首次试验的保守申请，非最低硬性要求。浮点累加和接近TopK阈值的节点排序可能与原PyG路径有细微差别，不承诺逐位一致。
+
+若在新根目录只重跑了图模型，可显式复用旧根目录中其他已完成模型的结果：
+
+```
+python scripts/compare_fann.py --root "$FANN_RUN_ROOT" \
+  --reference-root "$PWD/runs/fann_formal_20261119_202344"
+```
+
+仅在新根目录不存在某模型目录时才引用旧结果；新任务failed/interrupted不会被旧成功结果掩盖。比较会检查数据签名、域范围及best.pt哈希，记录每个模型实际结果目录。Slurm汇总也可通过FANN_REFERENCE_ROOT传入旧根目录。

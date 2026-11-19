@@ -1,0 +1,7 @@
+{
+  "regression_tests": {"count": 69, "all_passed": true},
+  "small_graph_gpu_output_and_parameter_gradient_parity": "verification/fann_bounded_graph_gpu.json",
+  "real_full_case_gcn_transformer": "verification/fann_real_graph_case_memory.json",
+  "real_full_domain_graph_unet_forward_backward": "verification/fann_real_graph_unet_memory.json",
+  "limitations": "RTX3090 capacity/gradient checks on one real case; not X203 verification, multi-case prediction accuracy or 400-epoch throughput evidence"
+}

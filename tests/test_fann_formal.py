@@ -65,6 +65,13 @@ class FormalFannTests(unittest.TestCase):
         subprocess.run([os.sys.executable,'scripts/compare_fann.py','--root',str(self.root/'runs')],cwd=ROOT,check=True,capture_output=True,text=True)
         comparison=json.loads((self.root/'runs/comparison.json').read_text())
         self.assertTrue(comparison['complete']);self.assertEqual(len(comparison['models']),7)
+        merged=self.root/'merged'
+        subprocess.run([os.sys.executable,'scripts/compare_fann.py','--root',str(merged),'--reference-root',str(self.root/'runs')],cwd=ROOT,check=True,capture_output=True,text=True)
+        self.assertTrue(json.loads((merged/'comparison.json').read_text())['complete'])
+        (merged/'GCN').mkdir();(merged/'GCN/status.json').write_text('{"state":"failed"}')
+        result=subprocess.run([os.sys.executable,'scripts/compare_fann.py','--root',str(merged),'--reference-root',str(self.root/'runs')],cwd=ROOT,capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual(json.loads((merged/'comparison.json').read_text())['states']['GCN']['state'],'failed')
 
     def test_interrupted_resume_matches_uninterrupted_optimizer_and_weights(self):
         manifest=inspect_splits(self.split);cfg=config(3)
@@ -102,6 +109,43 @@ class FormalFannTests(unittest.TestCase):
         report=train_one('GCN',manifest,config(),folder,'cpu',resume=True)
         self.assertEqual(report['optimizer_steps'],4)
         self.assertEqual(report['state'],'complete')
+
+    def test_bounded_graph_formal_resume_and_frozen_evaluation(self):
+        from unittest.mock import patch
+        manifest=inspect_splits(self.split)
+        cfg={**config(),'graph_execution':'bounded','graph_owner_nodes':4,'graph_edge_chunk':3,'graph_cache_mb':1}
+        with patch.dict(os.environ,{'TURBINE_FANN_GRAPH_CACHE':str(self.root/'graph_cache')}):
+            for name in ['GCN','Graph_UNet','Graph_Transformer']:
+                with self.subTest(model=name):
+                    folder=self.root/'bounded'/name
+                    result=train_one(name,manifest,cfg,folder,'cpu',max_updates=1)
+                    self.assertEqual(result['state'],'interrupted')
+                    report=train_one(name,manifest,cfg,folder,'cpu',resume=True)
+                    self.assertEqual(report['optimizer_steps'],4)
+                    frozen=evaluate_frozen(folder/'best.pt',manifest,'test','cpu',self.root/'frozen_bounded'/name)
+                    np.testing.assert_allclose(frozen['rmse'],report['test']['rmse'],atol=0,rtol=0)
+
+    def test_halo_interruption_discards_partial_case_gradients(self):
+        import signal
+        from unittest.mock import patch
+        from tfai.benchmarks.fann_graph_execution import BoundedGraphExecution
+        manifest=inspect_splits(self.split)
+        cfg={**config(),'graph_execution':'bounded','graph_owner_nodes':4,'graph_edge_chunk':3,'graph_cache_mb':1}
+        original=BoundedGraphExecution.pieces
+        def interrupted_pieces(*args,**kwargs):
+            for i,item in enumerate(original(*args,**kwargs)):
+                yield item
+                if i==0:os.kill(os.getpid(),signal.SIGTERM)
+        folder=self.root/'halo_signal'
+        with patch.dict(os.environ,{'TURBINE_FANN_GRAPH_CACHE':str(self.root/'signal_cache')}):
+            with patch.object(BoundedGraphExecution,'pieces',interrupted_pieces):
+                result=train_one('GCN',manifest,cfg,folder,'cpu')
+            self.assertEqual(result['global_step'],0)
+            saved=torch.load(folder/'last.pt',map_location='cpu',weights_only=False)
+            self.assertEqual(saved['position'],0)
+            self.assertEqual(saved['optimizer_state_dict']['state'],{})
+            report=train_one('GCN',manifest,cfg,folder,'cpu',resume=True)
+            self.assertEqual(report['optimizer_steps'],4)
 
     def test_geometry_leakage_and_legacy_rejected(self):
         raw=json.loads(self.split.read_text());raw['valid']=raw['train'][:1]

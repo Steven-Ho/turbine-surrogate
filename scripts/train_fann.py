@@ -35,11 +35,16 @@ def main():
     p.add_argument('--near-wall',type=float,default=.001)
     p.add_argument('--cache-samples',type=int,default=1)
     p.add_argument('--threads',type=int,default=4)
+    p.add_argument('--graph-execution',choices=['dense','bounded'],default='bounded')
+    p.add_argument('--graph-owner-nodes',type=int,default=32768)
+    p.add_argument('--graph-edge-chunk',type=int,default=262144)
+    p.add_argument('--graph-cache-mb',type=int,default=1024)
     p.add_argument('--max-updates',type=int,help='Stop and save after this many additional updates; recovery verification')
     a=p.parse_args()
     if a.epochs<1 or a.patience<1 or a.rank<1 or a.pod_geometry_bins<1 or a.grad_clip<=0 or a.learning_rate<=0 or not 0<a.min_lr<=a.learning_rate:
         p.error('Invalid budget, rank, clipping or learning-rate setting')
     if a.cache_samples<1 or a.threads<1 or (a.max_updates is not None and a.max_updates<1):p.error('Counts must be positive')
+    if a.graph_owner_nodes<1 or a.graph_edge_chunk<1 or a.graph_cache_mb<0:p.error('Invalid graph chunk/cache size')
     torch.set_num_threads(a.threads)
     if a.device.startswith('cuda') and not torch.cuda.is_available():raise RuntimeError('GPU unavailable; no silent CPU fallback')
     manifest=inspect_splits(a.splits,a.allow_legacy_inputs)
@@ -51,7 +56,10 @@ def main():
         folder=a.output/model
         try:
             result=train_one(model,manifest,config,folder,a.device,a.resume,a.max_updates)
-            if result['state']=='interrupted':raise SystemExit(130)
+            if result['state']=='interrupted':
+                peak=(torch.cuda.max_memory_allocated(a.device)/2**30) if a.device.startswith('cuda') else None
+                print(f'{model}: stopped safely after {result["global_step"]} updates; last.pt saved; peak_allocated_GiB={peak}',flush=True)
+                raise SystemExit(130)
         except RunLockedError as error:
             print(str(error),flush=True);errors[model]=str(error)
         except Exception as error:

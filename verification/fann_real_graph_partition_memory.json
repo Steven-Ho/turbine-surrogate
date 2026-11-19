@@ -1,0 +1,25 @@
+{
+  "scope": "real full faNN topology and geometry; first owner partition forward/backward only, not a full-case update or multi-case accuracy test",
+  "gpu": "RTX3090 24GiB",
+  "results": {
+    "GCN": {
+      "full_input_nodes": 9806346,
+      "owner_nodes": 8192,
+      "halo_graph_nodes": 50607,
+      "halo_graph_edges": 284074,
+      "peak_allocated_gpu_GiB": 2.816831111907959,
+      "seconds_including_graph_preparation": 11.802504614926875,
+      "backward_finite": true
+    },
+    "Graph_Transformer": {
+      "full_input_nodes": 9806346,
+      "owner_nodes": 8192,
+      "halo_graph_nodes": 33350,
+      "halo_graph_edges": 181666,
+      "peak_allocated_gpu_GiB": 0.6898255348205566,
+      "seconds_including_graph_preparation": 0.6746053730603307,
+      "backward_finite": true
+    }
+  },
+  "peak_process_host_GiB": 4.891998291015625
+}

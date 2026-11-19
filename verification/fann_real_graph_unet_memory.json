@@ -1,0 +1,10 @@
+{
+  "scope": "one real full faNN geometry with single-case normalization; capacity check only, not multi-case training accuracy",
+  "gpu": "RTX3090 24GiB",
+  "state": "forward_backward_passed",
+  "full_input_nodes": 9806346,
+  "finite_gradients": true,
+  "seconds": 393.2762227898929,
+  "peak_allocated_gpu_GiB": 17.778294563293457,
+  "peak_process_host_GiB": 35.39781188964844
+}

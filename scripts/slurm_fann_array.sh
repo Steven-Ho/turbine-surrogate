@@ -27,4 +27,5 @@ if [[ -n "${FANN_STEPS:-}" ]]; then
 fi
 resume_args=()
 if [[ "${FANN_RESUME:-0}" == 1 ]]; then resume_args+=(--resume); fi
-exec srun --ntasks=1 python scripts/run_fann_split.py --splits "$FANN_SPLITS" --index "$SLURM_ARRAY_TASK_ID" --epochs "${FANN_EPOCHS:-400}" --domain "${FANN_DOMAIN:-full}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" --output "${FANN_RUN_ROOT:-runs/fann_formal_${SLURM_ARRAY_JOB_ID}}" "${resume_args[@]}"
+if [[ -n "${FANN_MAX_UPDATES:-}" ]]; then resume_args+=(--max-updates "$FANN_MAX_UPDATES"); fi
+exec srun --ntasks=1 python scripts/run_fann_split.py --splits "$FANN_SPLITS" --index "$SLURM_ARRAY_TASK_ID" --epochs "${FANN_EPOCHS:-400}" --domain "${FANN_DOMAIN:-full}" --graph-execution "${FANN_GRAPH_EXECUTION:-bounded}" --graph-owner-nodes "${FANN_GRAPH_OWNER_NODES:-32768}" --graph-edge-chunk "${FANN_GRAPH_EDGE_CHUNK:-262144}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" --output "${FANN_RUN_ROOT:-runs/fann_formal_${SLURM_ARRAY_JOB_ID}}" "${resume_args[@]}"

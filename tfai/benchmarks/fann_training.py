@@ -143,6 +143,10 @@ def build_model(name,train,norm,config,state=None,scratch=None):
     model=FannAdapter(name,train,norm,scale=config['scale'],grid=config['grid'],rank=config['rank'],
                       pod_state=pod_state,pod_geometry_bins=config['pod_geometry_bins'])
     if state is not None:model.load_state_dict(state,strict=True)
+    if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
+        from .fann_graph_execution import BoundedGraphExecution
+        model.graph_executor=BoundedGraphExecution(name,config,
+            os.environ.get('TURBINE_FANN_GRAPH_CACHE','runs/fann_graph_topology_cache_v1'))
     return model
 
 
@@ -159,10 +163,14 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
     with torch.inference_mode():
         for i,sample in enumerate(store):
             if stop_requested is not None and stop_requested():return None
-            prediction=model(prepare_input(model,norm,sample,device))
+            executor=getattr(model,'graph_executor',None)
+            if executor is not None:
+                prediction=(executor.graph_unet(model,norm,sample,device) if model.name=='Graph_UNet'
+                            else executor.predict_cpu(model,norm,sample,device))
+            else:prediction=model(prepare_input(model,norm,sample,device))
             if tuple(prediction.shape)!=sample['targets'].shape or not torch.isfinite(prediction).all():
                 raise ValueError('Invalid validation/test prediction')
-            normalized_sse+=float((prediction-norm.target(sample,device)).double().square().sum().item())
+            normalized_sse+=float((prediction-norm.target(sample,prediction.device)).double().square().sum().item())
             physical=norm.decode(prediction);truth=sample['targets'].astype(np.float64)
             error=physical.astype(np.float64)-truth;n=len(truth)
             sse+=(error**2).sum(0);absolute+=np.abs(error).sum(0)
@@ -191,7 +199,7 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
 
 def assert_resume_config(old,new):
     immutable=['seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
-               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy']
+               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))
 
@@ -207,6 +215,11 @@ def train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
 
 def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
     config=dict(config)
+    if name not in GRAPH_MODELS:
+        config={key:value for key,value in config.items() if not key.startswith('graph_')}
+    if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
+        from .fann_graph_execution import SCHEMA as graph_schema
+        config['graph_execution_schema']=graph_schema
     if name=='GeoTransolver':
         from tfai.models._vendor.geotransolver2.spatial_neighbors import SCHEMA
         config['geo_neighbor_policy']={'schema':SCHEMA,'backend':os.environ.get('TURBINE_GEO_QUERY_BACKEND','kdtree'),
@@ -251,6 +264,8 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
     try:
         atomic_json({'state':'training','model':name,'pid':os.getpid(),'completed_epochs':epoch,'global_step':global_step,
                      'scope':manifest['scope']},folder/'status.json')
+        if getattr(model,'graph_executor',None) is not None and saved is None:
+            atomic_torch_save(checkpoint(),last_path)
         while epoch<config['epochs'] and bad<config['patience']:
             generator=torch.Generator().manual_seed(config['seed']+epoch)
             order=torch.randperm(len(train),generator=generator).tolist();model.train()
@@ -258,14 +273,27 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
                 if interrupted or (max_updates is not None and updates>=max_updates):
                     interrupted=True;break
                 sample=train[order[offset]];optimizer.zero_grad(set_to_none=True)
-                prediction=model(prepare_input(model,norm,sample,device));target=norm.target(sample,device)
-                if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
-                loss=(prediction-target).square().mean()
-                if not torch.isfinite(loss):raise ValueError('Nonfinite training loss')
-                loss.backward();torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
+                executor=getattr(model,'graph_executor',None)
+                if executor is not None and name in ['GCN','Graph_Transformer']:
+                    case_rng=capture_rng_state()
+                    loss_value=executor.backward_sample(model,norm,sample,device,stop_requested=lambda:interrupted)
+                    if loss_value is None:
+                        optimizer.zero_grad(set_to_none=True);restore_rng_state(case_rng)
+                        interrupted=True;break
+                    elements=sample['targets'].size
+                else:
+                    prediction=(executor.graph_unet(model,norm,sample,device) if executor is not None
+                                else model(prepare_input(model,norm,sample,device)))
+                    target=norm.target(sample,device)
+                    if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
+                    loss=(prediction-target).square().mean()
+                    if not torch.isfinite(loss):raise ValueError('Nonfinite training loss')
+                    loss.backward();loss_value=float(loss.item());elements=target.numel()
+                    del prediction,target,loss
+                torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
                 optimizer.step();global_step+=1;updates+=1;position=offset+1
-                pending_sum+=float(loss.item())*target.numel();pending_count+=target.numel()
-                del prediction,target,loss
+                pending_sum+=loss_value*elements;pending_count+=elements
+                if executor is not None:atomic_torch_save(checkpoint(),last_path)
             if interrupted:
                 atomic_torch_save(checkpoint(),last_path)
                 atomic_json({'state':'interrupted','model':name,'completed_epochs':epoch,'position':position,

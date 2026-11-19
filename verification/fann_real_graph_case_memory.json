@@ -1,0 +1,25 @@
+{
+  "scope": "one real full faNN case, single-case normalization; complete owner coverage and one update per model, not multi-case prediction accuracy",
+  "gpu": "RTX3090 24GiB",
+  "results": {
+    "GCN": {
+      "state": "full_case_update_passed",
+      "nodes": 9806346,
+      "normalized_mse": 1.0169754589442164,
+      "owner_nodes": 32768,
+      "optimizer_steps": 1,
+      "seconds": 96.58108035405166,
+      "peak_gpu_allocated_GiB": 11.794143676757812
+    },
+    "Graph_Transformer": {
+      "state": "full_case_update_passed",
+      "nodes": 9806346,
+      "normalized_mse": 1.2599527704151114,
+      "owner_nodes": 32768,
+      "optimizer_steps": 1,
+      "seconds": 32.58039071690291,
+      "peak_gpu_allocated_GiB": 2.927239418029785
+    }
+  },
+  "peak_process_host_GiB": 3.4332618713378906
+}

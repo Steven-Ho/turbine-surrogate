@@ -2,17 +2,24 @@
 import argparse,csv,json
 from pathlib import Path
 from tfai.benchmarks.fann import MODELS,FIELDS
-from tfai.benchmarks.fann_training import atomic_json
+from tfai.benchmarks.fann_training import atomic_json,file_hash
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,required=True)
-    a=p.parse_args();reports={};states={};rows=[];signatures=set();scopes=set()
+    p.add_argument('--reference-root',type=Path,help='Reuse only models absent from the new root; never replace a failed new model')
+    a=p.parse_args();reports={};states={};rows=[];signatures=set();scopes=set();folders={}
     for name in MODELS:
-        folder=a.root/name;status=folder/'status.json';report=folder/'report.json'
+        folder=a.root/name
+        if not folder.exists() and a.reference_root is not None:folder=a.reference_root/name
+        folders[name]=folder
+        status=folder/'status.json';report=folder/'report.json'
         states[name]=json.loads(status.read_text()) if status.exists() else {'state':'missing'}
         if states[name]['state']!='complete' or not report.exists():continue
-        data=json.loads(report.read_text());reports[name]=data
+        data=json.loads(report.read_text())
+        if not (folder/'best.pt').exists() or file_hash(folder/'best.pt')!=data['best_checkpoint_sha256']:
+            states[name]={'state':'artifact_mismatch','result_directory':str(folder.resolve())};continue
+        states[name]['result_directory']=str(folder.resolve());reports[name]=data
         signatures.add(data['dataset_signature']);scopes.add(data['scope'])
         for i,field in enumerate(FIELDS):
             rows.append({'model':name,'field':field,'unit':data['test']['units'][i],
@@ -32,7 +39,7 @@ def main():
         import matplotlib.pyplot as plt
         fig,axes=plt.subplots(4,2,figsize=(12,14),layout='constrained')
         for ax,name in zip(axes.flat,MODELS):
-            history=a.root/name/'history.json'
+            history=folders[name]/'history.json'
             ax.set_title(name);ax.set_xlabel('Epoch');ax.set_ylabel('Normalized MSE')
             if history.exists():
                 points=json.loads(history.read_text())

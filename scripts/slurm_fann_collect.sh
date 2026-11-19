@@ -12,4 +12,6 @@ source "${TURBINE_VENV:-$HOME/venvs/turbine-metax}/bin/activate"
 cd "${SLURM_SUBMIT_DIR:?}"
 source "${TURBINE_OPENGL_RUNTIME:-$PWD/turbine-opengl-jammy}/load.sh"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
-exec python scripts/compare_fann.py --root "${FANN_RUN_ROOT:?}"
+extra_args=()
+if [[ -n "${FANN_REFERENCE_ROOT:-}" ]]; then extra_args+=(--reference-root "$FANN_REFERENCE_ROOT"); fi
+exec python scripts/compare_fann.py --root "${FANN_RUN_ROOT:?}" "${extra_args[@]}"
