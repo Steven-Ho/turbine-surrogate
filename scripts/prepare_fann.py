@@ -7,8 +7,7 @@ import json
 from pathlib import Path
 import numpy as np
 import pyarrow.parquet as pq
-from scripts.smoke_fann import ArrayUnpickler
-from tfai.benchmarks.fann import FIELDS
+from scripts.fann_format import ArrayUnpickler, FIELDS
 
 
 def main():
