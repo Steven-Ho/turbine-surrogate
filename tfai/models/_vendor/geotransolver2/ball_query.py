@@ -6,13 +6,16 @@
 PhysicsNeMo explicitly does not guarantee identical capped-neighbor ordering
 between Warp and Torch backends. This port uses the documented Torch baseline:
 nearest points, radius-inclusive boundary, zero padding. Near ties and radius
-boundaries use the legacy Torch chunk to preserve its selection ordering. The model architecture
+boundaries use the legacy Torch chunk only for small clouds. Full-domain clouds
+retain KDTree nearest/radius selections, so tied-neighbor ordering need not match
+Torch topk. The reference point limit is part of the cache key. The model architecture
 and state-dict keys are unchanged. Backend/cache settings are recorded by the
 optimized training launcher.
 """
 import os
 import time
 import numpy as np
+import scipy
 import torch
 from .spatial_neighbors import NeighborIndexCache, geometry_key, tree_candidates
 from torch import nn
@@ -30,6 +33,9 @@ class BQWarp(nn.Module):
         self.neighbors_in_radius = neighbors_in_radius
         self.query_chunk_size = query_chunk_size
         self._cached = None
+        self.reference_max_points=int(os.environ.get('TURBINE_GEO_REFERENCE_MAX_POINTS','32768'))
+        if self.reference_max_points<0:raise ValueError('Reference point limit must be nonnegative')
+        self.large_query_ambiguity_rows=0
         self.cache_hits = 0
         self.cache_misses = 0
         self.backend = backend or os.environ.get('TURBINE_GEO_QUERY_BACKEND', 'kdtree')
@@ -73,6 +79,9 @@ class BQWarp(nn.Module):
         return indices, valid
 
     def _dense_indices(self, points, queries):
+        if len(points)>self.reference_max_points:
+            raise ValueError('Dense radius-query reference is limited to '+str(self.reference_max_points)+
+                ' points; use backend=kdtree for full-domain geometry. Raising the limit may exceed backend kernel limits.')
         k = min(self.neighbors_in_radius, points.shape[0])
         all_indices, all_valid = [], []
         with torch.no_grad():
@@ -93,7 +102,8 @@ class BQWarp(nn.Module):
             q = np.ascontiguousarray(queries.detach().cpu().numpy())
             device_name = torch.cuda.get_device_name(points.device) if points.is_cuda else 'cpu'
             context = {'torch': torch.__version__, 'device': points.device.type,
-                       'device_name': device_name, 'chunk': self.query_chunk_size}
+                       'device_name': device_name, 'chunk': self.query_chunk_size,
+                       'reference_max_points':self.reference_max_points,'scipy':scipy.__version__}
             key = geometry_key(p, q, self.radius, self.neighbors_in_radius, context)
             k = min(self.neighbors_in_radius, len(p))
             raw, source = self.index_cache.get(key, (len(q), k), len(p))
@@ -103,9 +113,16 @@ class BQWarp(nn.Module):
                 start = time.perf_counter()
                 raw, ambiguous = tree_candidates(p, q, self.radius, self.neighbors_in_radius)
                 self.ambiguity_rows += int(ambiguous.sum())
-                # Recompute whole ORIGINAL query chunks at ties/rounding boundaries.
-                # This preserves legacy topk ordering/precision rather than guessing.
-                blocks = np.unique(np.flatnonzero(ambiguous) // self.query_chunk_size)
+                # Recompute original query chunks only within the bounded legacy limit.
+                # Large clouds keep KDTree selections without an all-points pass.
+                if len(p)>self.reference_max_points:
+                    # Radius-inclusive nearest neighbors are already computed in
+                    # input dtype by the bounded CPU KDTree path. Equal-distance
+                    # selections use KDTree ordering, not legacy GPU topk ordering.
+                    self.large_query_ambiguity_rows+=int(ambiguous.sum())
+                    blocks=[]
+                else:
+                    blocks = np.unique(np.flatnonzero(ambiguous) // self.query_chunk_size)
                 self.reference_chunks += len(blocks)
                 for block in blocks:
                     lo = int(block) * self.query_chunk_size

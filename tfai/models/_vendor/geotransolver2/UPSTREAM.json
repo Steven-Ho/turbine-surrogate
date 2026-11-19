@@ -20,15 +20,18 @@
   ],
   "reference_url": "https://github.com/NVIDIA/physicsnemo/tree/v2.0.0/physicsnemo/experimental/models/geotransolver",
   "optimization": {
-    "revision": "kdtree-exact-guard-v1",
+    "revision": "kdtree-bounded-reference-v2",
     "previous_ball_query_sha256": "94737dc9ab932d2922f4750b96fd6b1f63d0dd286e6ebe935bb398aadd30c90d",
     "changes": [
       "Exact SciPy cKDTree candidates instead of unconditional full N-squared distance traversal",
       "Legacy Torch query chunks for distance ties and radius-rounding ambiguity",
       "Content-addressed memory/disk cache keyed by both geometries, radius/K/dtype/Torch device context",
       "Atomic uncompressed npz cache entries with ZIP CRC, shape/key/bounds validation",
-      "Fresh tensor gathering preserves gradients; no learned parameters or state-dict keys added"
+      "Fresh tensor gathering preserves gradients; no learned parameters or state-dict keys added",
+      "Full-domain clouds never fall back to dense all-points torch.cdist; CPU KDTree input-dtype radius-inclusive selection is retained at ties/boundaries",
+      "KDTree candidate temporaries are query-chunk bounded; memory cache has per-instance byte limits",
+      "Cache schema v2 separates this tie-handling policy from earlier exact-Torch-guard caches"
     ],
-    "verification": "Small CPU-only query/gradient/cache unit tests passed. Full X203 neighbor/output/parameter-gradient verification supplied as Slurm script; not executed locally."
+    "verification": "Small query/output/gradient parity retained for legacy-size inputs; large-path no-cdist and memory-bound tests. X203 kernel execution and full training still require cluster validation."
   }
 }

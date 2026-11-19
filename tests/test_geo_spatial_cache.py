@@ -56,6 +56,62 @@ class SpatialCacheTests(unittest.TestCase):
             fast = self.compare(p, q, .25, k, 1)
             self.assertGreater(fast.reference_chunks, 0)
 
+    def test_full_domain_ties_never_call_dense_cdist(self):
+        torch.manual_seed(23)
+        points=torch.randn(40001,3);points[:4]=0
+        points.requires_grad_();queries=torch.tensor([[0.,0,0],[50.,50,50]])
+        layer=BQ(.1,3,backend='kdtree')
+        with patch('torch.cdist',side_effect=AssertionError('Full-domain dense fallback')):
+            indices,neighbors=layer(points[None],queries[None])
+        self.assertGreater(layer.large_query_ambiguity_rows,0)
+        self.assertEqual(layer.reference_chunks,0)
+        self.assertEqual(tuple(neighbors.shape),(1,2,3,3))
+        torch.testing.assert_close(neighbors,torch.zeros_like(neighbors))
+        neighbors.sum().backward()
+        self.assertTrue(torch.isfinite(points.grad).all())
+        self.assertAlmostEqual(float(points.grad.sum()),9.)
+
+    def test_dense_reference_rejects_oversized_source_before_kernel(self):
+        with patch.dict(os.environ,{'TURBINE_GEO_REFERENCE_MAX_POINTS':'4'}):
+            layer=BQ(.5,2,backend='torch')
+        with patch('torch.cdist',side_effect=AssertionError('Kernel should not run')):
+            with self.assertRaisesRegex(ValueError,'Dense radius-query reference'):
+                layer(torch.zeros(1,5,3),torch.zeros(1,2,3))
+
+    def test_tree_query_temporaries_are_chunk_bounded(self):
+        module=importlib.import_module('_geo_spatial_unit.spatial_neighbors')
+        original=module.cKDTree;calls=[]
+        class TreeSpy:
+            def __init__(self,*args,**kwargs):self.tree=original(*args,**kwargs)
+            def query(self,queries,**kwargs):
+                calls.append(len(queries));return self.tree.query(queries,**kwargs)
+        p=torch.randn(31,3).numpy();q=torch.randn(17,3).numpy()
+        baseline=module.tree_candidates(p,q,1.,4)
+        with patch.dict(os.environ,{'TURBINE_GEO_TREE_QUERY_CHUNK':'3'}),patch.object(module,'cKDTree',TreeSpy):
+            bounded=module.tree_candidates(p,q,1.,4)
+        self.assertEqual(max(calls),3)
+        import numpy as np
+        np.testing.assert_array_equal(baseline[0],bounded[0])
+        np.testing.assert_array_equal(baseline[1],bounded[1])
+
+    def test_memory_cache_has_a_byte_budget(self):
+        import numpy as np
+        module=importlib.import_module('_geo_spatial_unit.spatial_neighbors')
+        with patch.dict(os.environ,{'TURBINE_GEO_MEMORY_CACHE_MB':'0'}):
+            cache=module.NeighborIndexCache(None,32)
+        cache.put('key',np.zeros((100,4),dtype=np.int32))
+        self.assertEqual(len(cache.memory),0);self.assertEqual(cache.memory_bytes,0)
+
+    def test_reference_policy_changes_cache_identity(self):
+        x=torch.zeros(1,9,3)
+        with patch.dict(os.environ,{'TURBINE_GEO_REFERENCE_MAX_POINTS':'32'}):
+            original=BQ(.5,3,backend='kdtree');original(x,x)
+        with patch.dict(os.environ,{'TURBINE_GEO_REFERENCE_MAX_POINTS':'0'}):
+            bounded=BQ(.5,3,backend='kdtree');bounded(x,x)
+        self.assertEqual(bounded.disk_cache_hits,0)
+        self.assertEqual(bounded.tree_builds,1)
+        self.assertEqual(bounded.reference_chunks,0)
+
     def test_A_B_A_uses_memory_without_rebuild(self):
         torch.manual_seed(5)
         a = torch.randn(1, 19, 3); b = a + .01

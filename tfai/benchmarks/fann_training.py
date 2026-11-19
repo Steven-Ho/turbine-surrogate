@@ -191,7 +191,7 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
 
 def assert_resume_config(old,new):
     immutable=['seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
-               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall']
+               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))
 
@@ -206,6 +206,11 @@ def train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
 
 
 def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
+    config=dict(config)
+    if name=='GeoTransolver':
+        from tfai.models._vendor.geotransolver2.spatial_neighbors import SCHEMA
+        config['geo_neighbor_policy']={'schema':SCHEMA,'backend':os.environ.get('TURBINE_GEO_QUERY_BACKEND','kdtree'),
+            'reference_max_points':int(os.environ.get('TURBINE_GEO_REFERENCE_MAX_POINTS','32768'))}
     last_path=folder/'last.pt';best_path=folder/'best.pt'
     if not resume and (last_path.exists() or best_path.exists()):raise ValueError('Existing run; use --resume or a new output directory')
     if resume and not last_path.exists():raise ValueError('No last.pt to resume')

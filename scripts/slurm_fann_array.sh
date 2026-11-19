@@ -17,6 +17,8 @@ source "${TURBINE_OPENGL_RUNTIME:-$PWD/turbine-opengl-jammy}/load.sh"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}" PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 export TURBINE_GEO_QUERY_BACKEND=kdtree
+# Never launch dense cdist reference kernels on MetaX, including small tie cases.
+export TURBINE_GEO_REFERENCE_MAX_POINTS="${TURBINE_GEO_REFERENCE_MAX_POINTS:-0}"
 export TURBINE_GEO_CACHE_DIR="${TURBINE_GEO_CACHE_DIR:-$PWD/runs/fann_neighbor_cache}"
 : "${FANN_SPLITS:?Set FANN_SPLITS to prepared splits.json}"
 if [[ -n "${FANN_STEPS:-}" ]]; then
