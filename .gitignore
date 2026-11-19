@@ -3,8 +3,10 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .hydra/
+logs/
 outputs/
 data/rotor37/
+turbine-opengl-jammy/
 exp_rotor37_GCN/model_rotor37_GCN/
 **/data/processed/
 **/evaluate/
