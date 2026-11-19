@@ -1,3 +1,5 @@
+> **正式流程已更新**：集群数组脚本现调用 `train_fann.py`，默认整域数据模式、400 epoch、完整恢复及独立测试。见 [正式训练说明](fann_formal_training.md)。下面单样本/子域说明主要记录旧基线，`run_fann.py --smoke` 仍保留用于调试。
+
 # faNN 七模型适配
 
 本入口独立于 Rotor37，未更改原七模型和训练器。适配目标为具有对应节点的 faNN
@@ -82,22 +84,6 @@ POD基底用该训练样本拟合，故训练误差不是泛化指标。
 尚未完成：981万节点整域的训练/推理调度、跨块上下文和守恒评估、跨几何统计实验。
 不要把当前子域接口通过等同于全域效果已验证。
 
-## 集群原始数据路径与七任务提交
+## 正式集群提交
 
-默认原始数据为 ~/Dataset/faNN，要求包含 data/hf_train-*.parquet、tree_constant_part.pkl。
-仅支持原始Parquet发布布局，不是datasets.save_to_disk的Arrow布局。
-先在虚拟环境安装兼容 NumPy1 的 pyarrow==19.0.1（离线集群需预备wheel）。
-
-```bash
-sbatch scripts/slurm_fann_prepare.sh
-# 准备作业完成后，将作业号替换为实际值：
-export FANN_SPLITS="$PWD/runs/fann_prepared_准备作业号/splits.json"
-export FANN_STEPS=20000
-sbatch scripts/slurm_fann_array.sh
-```
-
-预处理默认512单元，可提交前设置FANN_CELLS（最大10000）。按GeometryNumber固定seed=42，
-约80/10/10划分train/valid/test，测试集不参与训练或验证。当前训练入口只评估valid，
-独立test仍需后续增加冻结检查点评估。七个数组任务各使用一张GPU。
-输出 runs/fann_数组作业号/模型名/模型名/，包含权重、验证预测和报告。
-本入口为固定步数的子域基线，不含early stopping和断点续训；不是完整叶道正式全场训练。
+旧固定 steps 数组流程已由正式流程替代，请使用 [fann_formal_training.md](fann_formal_training.md)。旧 FANN_STEPS 环境变量需清除，正式流程使用 FANN_EPOCHS；旧512单元预处理数据需按新协议重新准备。

@@ -140,3 +140,7 @@ POD 验证集泄漏、U-Net 曲面采样/反归一化/背景输入、逐样本�
 训练入口分别使用 `--config-name train_rotor37_transolver_3` 和 `--config-name train_rotor37_geotransolver`。统一训练及测试由 `scripts/run_benchmark.py --phase train --epochs 20 --models Transolver_3 GeoTransolver --run-root runs/transolver_comparison20` 执行；完成后运行 `scripts/compare_transolvers.py`，生成 [七模型比较报告](reports/transolver_comparison20/REPORT.md)。
 
 长训练、自动降学习率、200→400 轮延长策略及 POD 对照见 [长训练方案](docs/transolver_long_training.md)，入口为 `scripts/run_long_training.py`。
+
+## faNN 正式训练
+
+faNN 的 epoch 训练、验证选优、调度早停、完整续训、独立测试及 Slurm 提交见 [正式训练说明](docs/fann_formal_training.md)。一键入口为 `bash scripts/submit_fann_formal.sh`。默认 full 数据模式使用全部节点，但当前每模型仍是单卡训练，未实现跨卡域并行；整域X203显存和性能需要实测。旧 `run_fann.py --smoke` 保留为局部接口调试入口。

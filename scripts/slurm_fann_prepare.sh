@@ -11,4 +11,4 @@ module load conda-py31010/3.10.10
 source "${TURBINE_VENV:-$HOME/venvs/turbine-metax}/bin/activate"
 cd "${SLURM_SUBMIT_DIR:?}"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
-exec python scripts/prepare_fann_cluster.py --source "${FANN_SOURCE:-$HOME/Dataset/faNN}" --output "${FANN_PREPARED:-$PWD/runs/fann_prepared_${SLURM_JOB_ID}}" --cells "${FANN_CELLS:-512}"
+exec python scripts/prepare_fann_cluster.py --source "${FANN_SOURCE:-$HOME/Dataset/faNN}" --output "${FANN_PREPARED:-$PWD/runs/fann_prepared_${SLURM_JOB_ID}}" --cells "${FANN_CELLS:-10000}" --selection "${FANN_DOMAIN:-full}"

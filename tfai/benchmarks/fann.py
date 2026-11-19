@@ -18,9 +18,23 @@ FIELDS = ('VelocityX', 'VelocityY', 'VelocityZ', 'Pressure', 'Temperature', 'Den
 PAIRS = np.array([(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),(0,4),(1,5),(2,6),(3,7)])
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=2)
+def _load_shared_mesh(path,stamp=None):
+    with np.load(path,allow_pickle=False) as data:
+        result={key:data[key] for key in ('hexahedra','original_node_ids','original_cell_ids')}
+    for value in result.values():value.flags.writeable=False
+    return result
+
+
 def load_sample(path):
     with np.load(path, allow_pickle=False) as f:
         s = {k:f[k].copy() for k in f.files}
+    if 'mesh_file' in s:
+        mesh=Path(str(s['mesh_file']))
+        if not mesh.is_absolute():mesh=Path(path).parent/mesh
+        s.update(_load_shared_mesh(str(mesh.resolve()),(mesh.stat().st_mtime_ns,mesh.stat().st_size)))
     if tuple(s['output_names']) != FIELDS: raise ValueError('Unexpected output order')
     n = len(s['coordinates'])
     if s['coordinates'].shape != (n,3) or s['targets'].shape != (n,6): raise ValueError('Invalid fields')
@@ -28,12 +42,22 @@ def load_sample(path):
     cells = s['hexahedra']
     if cells.ndim != 2 or cells.shape[1] != 8 or cells.dtype.kind not in 'iu': raise ValueError('Invalid HEXA_8')
     if cells.min() < 0 or cells.max() >= n: raise ValueError('Invalid connectivity')
-    if len(np.unique(s['original_node_ids'])) != n: raise ValueError('Duplicate node IDs')
+    node_ids=s['original_node_ids']
+    if node_ids.shape!=(n,) or node_ids.dtype.kind not in 'iu' or (node_ids<0).any() or len(np.unique(node_ids))!=n:
+        raise ValueError('Invalid or duplicate node IDs')
+    if str(s.get('selection_protocol',''))=='full':
+        if int(s.get('full_domain_nodes',-1))!=n or not np.array_equal(node_ids,np.arange(n)):
+            raise ValueError('Full-domain sample does not contain all original nodes')
     for k in ('coordinates','targets','operating_conditions'):
         if not np.isfinite(s[k]).all(): raise ValueError('Nonfinite '+k)
     h=hashlib.sha256()
-    for key in ('coordinates','targets','operating_conditions'):
+    for key in ('coordinates','targets','operating_conditions','original_node_ids','hexahedra','wall_distance','fixed_conditions'):
+        if key not in s: continue
+        h.update((key+str(s[key].shape)+str(s[key].dtype)).encode())
         h.update(np.ascontiguousarray(s[key]).tobytes())
+    if 'wall_distance' in s:
+        if s['wall_distance'].shape != (n,) or not np.isfinite(s['wall_distance']).all() or (s['wall_distance'] < 0).any():
+            raise ValueError('Invalid wall distance')
     s['fingerprint']=h.hexdigest()
     s['source'] = str(Path(path).resolve())
     return s
@@ -43,18 +67,44 @@ class Normalizer:
     def __init__(self, train):
         # Training snapshots only. Fixed physical scales prevent zero-variance
         # single-snapshot channels from causing huge normalized values.
-        xyz = np.concatenate([s['coordinates'] for s in train])
-        self.origin = xyz.min(0)
-        self.length = max(float(np.ptp(xyz,axis=0).max()),1e-8)
-        values = np.concatenate([s['targets'] for s in train]).astype(np.float64)
-        self.mean = values.mean(0).astype(np.float32)
-        floor = np.array([1,1,1,100,1,.01])
-        self.scale = np.maximum(values.std(0),floor).astype(np.float32)
+        lo = np.full(3, np.inf); hi = np.full(3, -np.inf)
+        count = 0; mean = np.zeros(6); m2 = np.zeros(6)
+        self.wall_distance = 'wall_distance' in train[0]
+        for sample in train:
+            if ('wall_distance' in sample) != self.wall_distance:
+                raise ValueError('Wall-distance schema must match across training samples')
+            xyz = sample['coordinates']; lo = np.minimum(lo,xyz.min(0)); hi = np.maximum(hi,xyz.max(0))
+            values = sample['targets'].astype(np.float64)
+            n = len(values); batch_mean = values.mean(0); delta = batch_mean - mean
+            m2 += ((values-batch_mean)**2).sum(0) + delta**2*count*n/(count+n)
+            mean += delta*n/(count+n); count += n
+        self.origin = lo.astype(np.float32)
+        self.length = max(float((hi-lo).max()),1e-8)
+        self.mean = mean.astype(np.float32)
+        self.scale = np.maximum(np.sqrt(m2/count),[1,1,1,100,1,.01]).astype(np.float32)
 
-    def graph(self,s,device):
+    @classmethod
+    def from_state(cls, state):
+        obj = cls.__new__(cls)
+        obj.origin = np.asarray(state['origin'], dtype=np.float32)
+        obj.mean = np.asarray(state['mean'], dtype=np.float32)
+        obj.scale = np.asarray(state['scale'], dtype=np.float32)
+        obj.length = float(state['length']); obj.wall_distance = bool(state.get('wall_distance',False))
+        if obj.origin.shape != (3,) or obj.mean.shape != (6,) or obj.scale.shape != (6,) or obj.length <= 0:
+            raise ValueError('Invalid saved normalization')
+        if not np.isfinite(np.r_[obj.origin,obj.mean,obj.scale,obj.length]).all() or (obj.scale<=0).any():
+            raise ValueError('Nonfinite saved normalization')
+        return obj
+
+    def graph(self,s,device,with_edges=True):
         xyz = ((s['coordinates']-self.origin)/self.length).astype(np.float32)
         bc = (s['operating_conditions']/np.array([2000,1e5])).astype(np.float32)
-        x = np.column_stack([xyz,np.broadcast_to(bc,(len(xyz),2))]).astype(np.float32)
+        features = [xyz]
+        if self.wall_distance:
+            if 'wall_distance' not in s: raise ValueError('Missing wall distance')
+            features.append((s['wall_distance']/self.length)[:,None])
+        x = np.column_stack(features+[np.broadcast_to(bc,(len(xyz),2))]).astype(np.float32)
+        if not with_edges:return Data(x=torch.from_numpy(x)).to(device)
         edges = s['hexahedra'][:,PAIRS].reshape(-1,2)
         edges = np.unique(np.concatenate([edges,edges[:,::-1]]),axis=0)
         delta = xyz[edges[:,1]]-xyz[edges[:,0]]
@@ -69,29 +119,36 @@ class Normalizer:
 
 
 class FannAdapter(nn.Module):
-    def __init__(self,name,train,norm,scale='small',grid=32,rank=32):
+    def __init__(self,name,train,norm,scale='small',grid=32,rank=32,pod_state=None,pod_geometry_bins=0):
         super().__init__()
         if name not in MODELS: raise ValueError(name)
         self.name=name;self.grid=grid
+        self.input_dim=6 if norm.wall_distance else 5
+        self.pod_geometry_bins=int(pod_geometry_bins)
         cfg={'model':{'scale':scale,'geotransolver_backend':'portable_torch'},'training':{}}
         if name == 'POD':
             from tfai.models.pod import POD
-            ref=train[0]
-            for s in train:
-                if not np.array_equal(s['original_node_ids'],ref['original_node_ids']) or not np.array_equal(s['hexahedra'],ref['hexahedra']):
-                    raise ValueError('POD requires aligned node IDs and identical submesh topology')
-            snapshots=torch.stack([norm.target(s,'cpu').flatten() for s in train])
-            # Uncentered POD after per-channel training normalization supports a
-            # single snapshot for smoke only; useful ranks need multiple cases.
-            _,_,vh=torch.linalg.svd(snapshots,full_matrices=False)
-            basis=vh[:min(rank,len(vh))].T.contiguous()
+            if pod_state is None:
+                ref=train[0]
+                for sample in train:
+                    if not np.array_equal(sample['original_node_ids'],ref['original_node_ids']) or not np.array_equal(sample['hexahedra'],ref['hexahedra']):
+                        raise ValueError('POD requires aligned node IDs and identical submesh topology')
+                snapshots=torch.stack([norm.target(sample,'cpu').flatten() for sample in train])
+                _,_,vh=torch.linalg.svd(snapshots,full_matrices=False)
+                basis=vh[:min(rank,len(vh))].T.contiguous()
+                node_ids=torch.from_numpy(ref['original_node_ids'].astype(np.int64))
+            else:
+                basis=pod_state['basis'].detach().cpu()
+                node_ids=pod_state['node_ids'].detach().cpu()
+                if basis.ndim!=2 or basis.shape[0]!=len(node_ids)*6:
+                    raise ValueError('Invalid saved POD basis')
             self.register_buffer('basis',basis)
-            self.register_buffer('node_ids',torch.from_numpy(ref['original_node_ids'].astype(np.int64)))
-            self.net=POD(3*len(ref['coordinates'])+2,basis.shape[1],scale,cfg)
+            self.register_buffer('node_ids',node_ids)
+            self.net=POD((self.input_dim-2)*(self.pod_geometry_bins or len(node_ids))+2,basis.shape[1],scale,cfg)
         elif name=='UNet':
             from tfai.models.unet import UNet
             if grid < 32 or grid%16: raise ValueError('UNet grid must be >=32 and divisible by 16')
-            self.net=UNet(6,6,(grid,grid,grid),scale)
+            self.net=UNet(self.input_dim+1,6,(grid,grid,grid),scale)
         else:
             if name=='GCN':
                 from tfai.models.gcn import GCN as cls
@@ -102,13 +159,16 @@ class FannAdapter(nn.Module):
             else:
                 from tfai.models.transolver_adapters import Transolver3,GeoTransolver
                 cls=Transolver3 if name=='Transolver_3' else GeoTransolver
-            self.net=cls(config=cfg,input_dim=5,output_dim=6)
+            self.net=cls(config=cfg,input_dim=self.input_dim,output_dim=6)
 
     def prepare(self,graph,node_ids):
         if self.name=='POD':
             if not torch.equal(torch.as_tensor(node_ids,device=self.node_ids.device),self.node_ids):
                 raise ValueError('POD node ordering differs from fitted basis')
-            return torch.cat([graph.x[:,:3].flatten(),graph.x[0,3:]]).unsqueeze(0)
+            geometry=graph.x[:,:-2]
+            if self.pod_geometry_bins:
+                geometry=F.adaptive_avg_pool1d(geometry.T[None],self.pod_geometry_bins).squeeze(0).T
+            return torch.cat([geometry.flatten(),graph.x[0,-2:]]).unsqueeze(0)
         if self.name!='UNet': return graph
         xyz=graph.x[:,:3];lo=xyz.min(0).values;span=(xyz.max(0).values-lo).clamp_min(1e-8)
         axes=[torch.linspace(lo[i],lo[i]+span[i],self.grid,device=xyz.device) for i in range(3)]
@@ -118,7 +178,7 @@ class FannAdapter(nn.Module):
         distance,ids=cKDTree(xyz.cpu().numpy()).query(positions.cpu().numpy().reshape(-1,3))
         nearest=graph.x[torch.as_tensor(ids,device=xyz.device)]
         features=torch.cat([nearest,torch.as_tensor(distance,device=xyz.device,dtype=xyz.dtype)[:,None]],1)
-        volume=features.T.reshape(1,6,self.grid,self.grid,self.grid)
+        volume=features.T.reshape(1,self.input_dim+1,self.grid,self.grid,self.grid)
         query=((xyz-lo)/span*2-1).reshape(1,1,1,-1,3)
         return volume,query
 

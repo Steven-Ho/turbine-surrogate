@@ -1,0 +1,26 @@
+{
+  "verification": "real faNN single-sample full-domain format, not training accuracy or GPU memory validation",
+  "nodes": 9806346,
+  "cells": 9429120,
+  "fields": [
+    "VelocityX",
+    "VelocityY",
+    "VelocityZ",
+    "Pressure",
+    "Temperature",
+    "Density"
+  ],
+  "fixed_conditions": [
+    101325.0,
+    288.15,
+    1006.0,
+    1.4
+  ],
+  "full_case_bytes": 313359636,
+  "shared_mesh_bytes": 123051876,
+  "fingerprint": "ceec05cb07224d00b295f61e61c20a214d2c8a334037c29cf9e5270ea037aa8c",
+  "regression_tests": {
+    "count": 56,
+    "all_passed": true
+  }
+}

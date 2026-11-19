@@ -1,0 +1,2 @@
+# Extra faNN reader dependency. Keep the cluster vendor-provided PyTorch stack.
+pyarrow==19.0.1

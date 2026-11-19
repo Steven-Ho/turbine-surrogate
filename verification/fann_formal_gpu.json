@@ -1,0 +1,97 @@
+{
+  "verification": "synthetic four-geometry protocol fixture, not faNN accuracy or full-scale memory validation",
+  "device": "RTX3090 CUDA",
+  "results": {
+    "POD": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "UNet": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "GCN": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "Graph_UNet": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "Graph_Transformer": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "Transolver_3": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    },
+    "GeoTransolver": {
+      "state": "complete",
+      "updates": 2,
+      "test_cases": 1,
+      "fields": [
+        "VelocityX",
+        "VelocityY",
+        "VelocityZ",
+        "Pressure",
+        "Temperature",
+        "Density"
+      ]
+    }
+  }
+}

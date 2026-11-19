@@ -28,13 +28,13 @@ def graph_features(data, input_dim):
 class Transolver3(nn.Module):
     def __init__(self, config, input_dim, output_dim):
         super().__init__()
-        if input_dim!=5: raise ValueError("Rotor37 Transolver3 expects xyz + Omega/P")
+        if input_dim<5: raise ValueError("Expected xyz, optional nodal features and two global conditions")
         if config.get("training",{}).get("graph_use_partition",False):
             raise ValueError("Use Transolver3 global slice chunking, not independent graph partitions")
         self.input_dim=input_dim
         s=SCALES[config["model"]["scale"]]
         self.chunk_size=int(config["model"].get("transolver_chunk_size",8192))
-        self.model=OfficialTransolver3(space_dim=3,fun_dim=2,out_dim=output_dim,
+        self.model=OfficialTransolver3(space_dim=3,fun_dim=input_dim-3,out_dim=output_dim,
             n_layers=s["layers"],n_hidden=s["hidden"],n_head=s["heads"],slice_num=s["slices"],
             mlp_ratio=2,dropout=0.,unified_pos=False)
 
@@ -61,12 +61,12 @@ class GeoTransolver(nn.Module):
             from physicsnemo.experimental.models.geotransolver import GeoTransolver as OfficialGeoTransolver
         else:
             raise ValueError("geotransolver_backend must be physicsnemo or portable_torch")
-        if input_dim!=5: raise ValueError("Rotor37 GeoTransolver expects xyz + Omega/P")
+        if input_dim<5: raise ValueError("Expected xyz, optional nodal features and two global conditions")
         if config.get("training",{}).get("graph_use_partition",False):
             raise ValueError("GeoTransolver requires whole-case geometry/global context")
         self.input_dim=input_dim
         s=SCALES[config["model"]["scale"]]
-        self.model=OfficialGeoTransolver(functional_dim=3,out_dim=output_dim,
+        self.model=OfficialGeoTransolver(functional_dim=input_dim-2,out_dim=output_dim,
             geometry_dim=3,global_dim=2,n_layers=s["layers"],n_hidden=s["hidden"],
             n_head=s["heads"],slice_num=s["slices"],mlp_ratio=2,dropout=0.,use_te=False,
             include_local_features=True,radii=[0.05,0.25],neighbors_in_radius=[8,32],n_hidden_local=16)
@@ -75,9 +75,9 @@ class GeoTransolver(nn.Module):
         outputs=[]
         for x in graph_features(data,self.input_dim):
             xyz=x[:,:3].unsqueeze(0)
-            conditions=x[:1,3:].unsqueeze(0)
-            if not torch.allclose(x[:,3:],x[:1,3:].expand(x.shape[0],-1)):
+            conditions=x[:1,-2:].unsqueeze(0)
+            if not torch.allclose(x[:,-2:],x[:1,-2:].expand(x.shape[0],-1)):
                 raise ValueError("Omega/P must be constant across nodes within a case")
-            outputs.append(self.model(xyz,local_positions=xyz,
+            outputs.append(self.model(x[:,:-2].unsqueeze(0),local_positions=xyz,
                 global_embedding=conditions,geometry=xyz).squeeze(0))
         return torch.cat(outputs,dim=0)
