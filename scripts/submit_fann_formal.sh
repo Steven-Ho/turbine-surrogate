@@ -21,7 +21,10 @@ if [[ -z "${FANN_SPLITS:-}" ]]; then
 elif [[ ! -f "$FANN_SPLITS" ]]; then
   echo "FANN_SPLITS does not exist: $FANN_SPLITS" >&2; exit 2
 fi
-array=$(sbatch --parsable "${dependency[@]}" scripts/slurm_fann_array.sh)
+startup=$(sbatch --parsable "${dependency[@]}" scripts/slurm_fann_startup.sh)
+startup=${startup%%;*}
+echo "Startup registration: $startup"
+array=$(sbatch --parsable --dependency="afterok:$startup" scripts/slurm_fann_array.sh)
 array=${array%%;*}
 summary=$(sbatch --parsable --dependency="afterany:$array" scripts/slurm_fann_collect.sh)
 printf 'Array: %s\nSummary: %s\nResults: %s\n' "$array" "$summary" "$FANN_RUN_ROOT"

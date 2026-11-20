@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 import torch
 from tfai.benchmarks.fann import MODELS
-from tfai.benchmarks.fann_training import inspect_splits, train_one, atomic_json, RunLockedError
+from tfai.benchmarks.fann_training import train_one, atomic_json, RunLockedError
+from tfai.benchmarks.fann_startup_cache import load_startup
 
 
 def main():
@@ -48,7 +49,8 @@ def main():
     torch.set_num_threads(a.threads)
     if a.device.startswith('cuda') and not torch.cuda.is_available():raise RuntimeError('GPU unavailable; no silent CPU fallback')
     print(f'faNN startup: models={a.models} splits={a.splits} device={a.device}',flush=True)
-    manifest=inspect_splits(a.splits,a.allow_legacy_inputs,progress=lambda message:print(message,flush=True))
+    manifest=load_startup(a.splits,a.allow_legacy_inputs,workers=int(os.environ.get('FANN_STARTUP_WORKERS','1')),
+                          progress=lambda message:print(message,flush=True))
     print('faNN split inspection complete; entering model initialization',flush=True)
     if a.domain!='legacy' and manifest['domain']!=a.domain:
         p.error('Requested domain differs from prepared data: '+manifest['domain'])

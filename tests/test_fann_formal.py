@@ -247,7 +247,7 @@ class FormalFannTests(unittest.TestCase):
         env=dict(os.environ,PATH=str(self.root)+os.pathsep+os.environ['PATH'],CALL_LOG=str(log),FANN_RUN_ROOT=str(self.root/'submitted'))
         env.pop('FANN_SPLITS',None);env.pop('FANN_STEPS',None)
         subprocess.run(['bash','scripts/submit_fann_formal.sh'],cwd=ROOT,env=env,check=True,capture_output=True,text=True)
-        calls=log.read_text().splitlines();self.assertEqual(len(calls),3)
-        self.assertIn('afterok:12345',calls[1]);self.assertIn('afterany:12345',calls[2])
+        calls=log.read_text().splitlines();self.assertEqual(len(calls),4)
+        self.assertIn('afterok:12345',calls[1]);self.assertIn('afterok:12345',calls[2]);self.assertIn('afterany:12345',calls[3])
 
 if __name__=='__main__':unittest.main()

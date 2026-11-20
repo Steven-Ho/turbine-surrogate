@@ -28,13 +28,17 @@ def _load_shared_mesh(path,stamp=None):
     return result
 
 
-def load_sample(path):
+def load_sample(path, validate=True):
     with np.load(path, allow_pickle=False) as f:
         s = {k:f[k].copy() for k in f.files}
     if 'mesh_file' in s:
         mesh=Path(str(s['mesh_file']))
         if not mesh.is_absolute():mesh=Path(path).parent/mesh
-        s.update(_load_shared_mesh(str(mesh.resolve()),(mesh.stat().st_mtime_ns,mesh.stat().st_size)))
+        stamp=mesh.stat()
+        s.update(_load_shared_mesh(str(mesh.resolve()),(stamp.st_dev,stamp.st_ino,stamp.st_size,stamp.st_mtime_ns,stamp.st_ctime_ns)))
+    if not validate:
+        s['source']=str(Path(path).resolve())
+        return s
     if tuple(s['output_names']) != FIELDS: raise ValueError('Unexpected output order')
     n = len(s['coordinates'])
     if s['coordinates'].shape != (n,3) or s['targets'].shape != (n,6): raise ValueError('Invalid fields')
@@ -54,7 +58,7 @@ def load_sample(path):
     for key in ('coordinates','targets','operating_conditions','original_node_ids','hexahedra','wall_distance','fixed_conditions'):
         if key not in s: continue
         h.update((key+str(s[key].shape)+str(s[key].dtype)).encode())
-        h.update(np.ascontiguousarray(s[key]).tobytes())
+        h.update(memoryview(np.ascontiguousarray(s[key])).cast('B'))
     if 'wall_distance' in s:
         if s['wall_distance'].shape != (n,) or not np.isfinite(s['wall_distance']).all() or (s['wall_distance'] < 0).any():
             raise ValueError('Invalid wall distance')
@@ -63,27 +67,46 @@ def load_sample(path):
     return s
 
 
+def normalization_summary(sample):
+    values=sample['targets'].astype(np.float64)
+    mean=values.mean(0)
+    return {'lo':sample['coordinates'].min(0),'hi':sample['coordinates'].max(0),
+            'count':len(values),'mean':mean,'m2':((values-mean)**2).sum(0),
+            'wall_distance':'wall_distance' in sample}
+
+
+class NormalizationStats:
+    """Merge per-case training summaries in the original deterministic order."""
+    def __init__(self):
+        self.lo=np.full(3,np.inf);self.hi=np.full(3,-np.inf)
+        self.count=0;self.mean=np.zeros(6);self.m2=np.zeros(6);self.wall=None
+
+    def add(self,summary):
+        wall=summary['wall_distance']
+        if self.wall is None:self.wall=wall
+        if wall!=self.wall:raise ValueError('Wall-distance schema must match across training samples')
+        self.lo=np.minimum(self.lo,summary['lo']);self.hi=np.maximum(self.hi,summary['hi'])
+        n=summary['count'];delta=summary['mean']-self.mean
+        self.m2+=summary['m2']+delta**2*self.count*n/(self.count+n)
+        self.mean+=delta*n/(self.count+n);self.count+=n
+
+    def state(self):
+        if not self.count:raise ValueError('No training data for normalization')
+        return {'origin':self.lo.astype(np.float32),'length':max(float((self.hi-self.lo).max()),1e-8),
+                'mean':self.mean.astype(np.float32),
+                'scale':np.maximum(np.sqrt(self.m2/self.count),[1,1,1,100,1,.01]).astype(np.float32),
+                'wall_distance':self.wall}
+
+
 class Normalizer:
     def __init__(self, train, progress=None):
-        # Training snapshots only. Fixed physical scales prevent zero-variance
-        # single-snapshot channels from causing huge normalized values.
-        lo = np.full(3, np.inf); hi = np.full(3, -np.inf)
-        count = 0; mean = np.zeros(6); m2 = np.zeros(6)
-        self.wall_distance = 'wall_distance' in train[0]
+        # Training snapshots only, with identical ordered float64 reductions.
+        stats=NormalizationStats()
         for sample_index,sample in enumerate(train):
             if progress is not None and sample_index%10==0:
                 progress(f'normalization sample {sample_index+1}/{len(train)}')
-            if ('wall_distance' in sample) != self.wall_distance:
-                raise ValueError('Wall-distance schema must match across training samples')
-            xyz = sample['coordinates']; lo = np.minimum(lo,xyz.min(0)); hi = np.maximum(hi,xyz.max(0))
-            values = sample['targets'].astype(np.float64)
-            n = len(values); batch_mean = values.mean(0); delta = batch_mean - mean
-            m2 += ((values-batch_mean)**2).sum(0) + delta**2*count*n/(count+n)
-            mean += delta*n/(count+n); count += n
-        self.origin = lo.astype(np.float32)
-        self.length = max(float((hi-lo).max()),1e-8)
-        self.mean = mean.astype(np.float32)
-        self.scale = np.maximum(np.sqrt(m2/count),[1,1,1,100,1,.01]).astype(np.float32)
+            stats.add(normalization_summary(sample))
+        self.__dict__.update(stats.state())
 
     @classmethod
     def from_state(cls, state):

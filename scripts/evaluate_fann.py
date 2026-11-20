@@ -1,7 +1,8 @@
 """Evaluate a frozen faNN checkpoint without fitting normalization or POD."""
 import argparse
 from pathlib import Path
-from tfai.benchmarks.fann_training import inspect_splits, evaluate_frozen
+from tfai.benchmarks.fann_training import evaluate_frozen
+from tfai.benchmarks.fann_startup_cache import load_startup
 
 
 def main():
@@ -11,6 +12,6 @@ def main():
     p.add_argument('--output',type=Path,required=True);p.add_argument('--allow-legacy-inputs',action='store_true')
     a=p.parse_args()
     if a.output.exists():p.error('Use a new output directory')
-    evaluate_frozen(a.checkpoint,inspect_splits(a.splits,a.allow_legacy_inputs),a.split,a.device,a.output)
+    evaluate_frozen(a.checkpoint,load_startup(a.splits,a.allow_legacy_inputs,progress=lambda message:print(message,flush=True)),a.split,a.device,a.output)
 
 if __name__=='__main__':main()

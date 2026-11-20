@@ -1,0 +1,38 @@
+{
+  "scope": "Startup registration and unchanged-data reuse verification; no cluster startup-time guarantee",
+  "regression": {
+    "tests": 41,
+    "result": "passed",
+    "command": ".venv/bin/python -m unittest tests.test_fann_startup_cache tests.test_fann_formal tests.test_fann_speed tests.test_fann_adapters tests.test_fann_bounded_graphs"
+  },
+  "coverage": [
+    "Warm registration hit does not read sample contents",
+    "Parallel normalization is bitwise equal to serial normalization in original sample order",
+    "Four processes build only one registration",
+    "Sample or shared mesh changes invalidate registration, including preserved mtime with changed ctime",
+    "Test labels do not enter training normalization",
+    "Registered loading skips repeated content checks and rejects concurrent input replacement",
+    "Old checkpoint resume and explicit unchanged-data import remain compatible",
+    "Changed registered data never reuse old checkpoint statistics"
+  ],
+  "real_full_case_read_probe": {
+    "scope": "Local real full-case load timings only; not shared-filesystem startup or epoch speed prediction",
+    "results": {
+      "strict": [
+        2.8436260919552296,
+        2.0111078498885036
+      ],
+      "registered_fast": [
+        1.4635012331418693,
+        1.4625033719930798
+      ]
+    },
+    "nodes": 9806346
+  },
+  "limitations": [
+    "Metadata reuse assumes prepared files remain unchanged; this is not a fresh content audit",
+    "Explicit import from an old checkpoint relies on user assertion that data remained unchanged since that checkpoint",
+    "Workers and bandwidth benefit have not been measured on the X203 shared filesystem",
+    "Model initialization and first graph/neighbor cache construction remain separate startup costs"
+  ]
+}

@@ -43,16 +43,26 @@ def file_hash(path):
 
 
 class SampleStore:
-    def __init__(self, paths, cache_size=1, fingerprints=None):
+    def __init__(self, paths, cache_size=1, fingerprints=None, registered_files=None, sample_dependencies=None):
         self.paths=[str(Path(p).resolve()) for p in paths]
         self.cache=collections.OrderedDict();self.limit=max(1,cache_size)
         self.fingerprints=fingerprints
+        self.registered_files=registered_files
+        self.sample_dependencies=sample_dependencies
     def __len__(self):return len(self.paths)
     def __iter__(self):
         for i in range(len(self)):yield self[i]
     def __getitem__(self,index):
+        if self.registered_files is not None:
+            from .fann_startup_cache import verify_files
+            dependencies={path:self.registered_files[path] for path in self.sample_dependencies[self.paths[index]]}
+            verify_files(dependencies)
         if index not in self.cache:
-            sample=load_sample(self.paths[index])
+            if self.registered_files is not None:
+                sample=load_sample(self.paths[index],validate=False)
+                verify_files(dependencies)
+                sample['fingerprint']=self.fingerprints[index]
+            else:sample=load_sample(self.paths[index])
             if self.fingerprints and sample['fingerprint']!=self.fingerprints[index]:
                 raise ValueError('Sample content changed: '+self.paths[index])
             self.cache[index]=sample
@@ -61,50 +71,82 @@ class SampleStore:
         return self.cache[index]
 
 
-def inspect_splits(split_path, allow_legacy=False, progress=None):
+def _inspection_worker_init():
+    # Each worker reads/reduces a whole case; prevent nested Torch CPU pools.
+    torch.set_num_threads(1)
+
+
+def _inspect_case(task):
+    path,collect_stats=task
+    sample=load_sample(path)
+    if 'geometry_id' not in sample:raise ValueError('Missing geometry_id')
+    summary={'geometry':int(sample['geometry_id'].reshape(-1)[0]),
+             'domain':str(sample.get('selection_protocol',np.array('legacy_first'))),
+             'has_wall':'wall_distance' in sample,'physics':sample.get('fixed_conditions'),
+             'fingerprint':sample['fingerprint'],'nodes':len(sample['coordinates']),
+             'cells':len(sample['hexahedra'])}
+    if collect_stats:
+        from .fann import normalization_summary
+        summary['normalization']=normalization_summary(sample)
+    return summary
+
+
+def inspect_splits(split_path, allow_legacy=False, progress=None, collect_normalization=False, workers=1):
+    from .fann import NormalizationStats
+    if workers<1:raise ValueError('Startup workers must be positive')
     split_path=Path(split_path).resolve();raw=json.loads(split_path.read_text())
     records={};geometries={};seen={};protocol=None;wall=None;fixed=None
-    for split in ['train','valid','test']:
-        paths=raw.get(split,[])
-        if not paths:raise ValueError('Need nonempty '+split+' split')
-        records[split]=[];geometries[split]=set()
-        if progress is not None:progress(f'faNN inspecting {split}: {len(paths)} samples')
-        for sample_index,value in enumerate(paths):
-            path=Path(value)
-            if not path.is_absolute():path=split_path.parent/path
-            if progress is not None and sample_index%10==0:
-                progress(f'faNN inspecting {split} {sample_index+1}/{len(paths)}: {path}')
-            sample=load_sample(path)
-            if 'geometry_id' not in sample:raise ValueError('Missing geometry_id')
-            geometry=int(sample['geometry_id'].reshape(-1)[0]);geometries[split].add(geometry)
-            domain=str(sample.get('selection_protocol',np.array('legacy_first')))
-            has_wall='wall_distance' in sample
-            if protocol is None:protocol=domain;wall=has_wall
-            if domain!=protocol or wall!=has_wall:raise ValueError('Mixed domain or input schemas')
-            if not allow_legacy and (domain not in ['structured_patches','full'] or not has_wall):
-                raise ValueError('Formal protocol needs wall_distance and structured_patches/full data; reprepare or explicitly use --allow-legacy-inputs')
-            physics=sample.get('fixed_conditions')
-            if physics is not None:
-                if np.asarray(physics).shape!=(4,) or not np.isfinite(physics).all():raise ValueError('Invalid fixed physics')
-                if fixed is None:fixed=np.asarray(physics).tolist()
-                elif not np.array_equal(physics,fixed):raise ValueError('Fixed inlet/gas conditions changed without model input support')
-            identity=sample['fingerprint']
-            if identity in seen:raise ValueError('Duplicate sample content: '+str(path)+' and '+seen[identity])
-            seen[identity]=str(path)
-            records[split].append({'path':str(path.resolve()),'fingerprint':identity,'geometry_id':geometry,
-                                   'nodes':len(sample['coordinates']),'cells':len(sample['hexahedra'])})
+    stats=NormalizationStats();pool=None
+    if workers>1:
+        from concurrent.futures import ProcessPoolExecutor
+        from multiprocessing import get_context
+        pool=ProcessPoolExecutor(max_workers=workers,mp_context=get_context('spawn'),initializer=_inspection_worker_init)
+    try:
+        for split in ['train','valid','test']:
+            paths=raw.get(split,[])
+            if not paths:raise ValueError('Need nonempty '+split+' split')
+            resolved=[str((Path(value) if Path(value).is_absolute() else split_path.parent/value).resolve()) for value in paths]
+            records[split]=[];geometries[split]=set()
+            if progress is not None:progress(f'faNN inspecting {split}: {len(paths)} samples, workers={workers}')
+            tasks=[(path,collect_normalization and split=='train') for path in resolved]
+            summaries=pool.map(_inspect_case,tasks,chunksize=1) if pool else map(_inspect_case,tasks)
+            for sample_index,(path,sample) in enumerate(zip(resolved,summaries)):
+                if progress is not None and sample_index%10==0:
+                    progress(f'faNN inspecting {split} {sample_index+1}/{len(paths)}: {path}')
+                geometry=sample['geometry'];geometries[split].add(geometry)
+                domain=sample['domain'];has_wall=sample['has_wall']
+                if protocol is None:protocol=domain;wall=has_wall
+                if domain!=protocol or wall!=has_wall:raise ValueError('Mixed domain or input schemas')
+                if not allow_legacy and (domain not in ['structured_patches','full'] or not has_wall):
+                    raise ValueError('Formal protocol needs wall_distance and structured_patches/full data; reprepare or explicitly use --allow-legacy-inputs')
+                physics=sample['physics']
+                if physics is not None:
+                    if np.asarray(physics).shape!=(4,) or not np.isfinite(physics).all():raise ValueError('Invalid fixed physics')
+                    if fixed is None:fixed=np.asarray(physics).tolist()
+                    elif not np.array_equal(physics,fixed):raise ValueError('Fixed inlet/gas conditions changed without model input support')
+                identity=sample['fingerprint']
+                if identity in seen:raise ValueError('Duplicate sample content: '+path+' and '+seen[identity])
+                seen[identity]=path
+                records[split].append({'path':path,'fingerprint':identity,'geometry_id':geometry,
+                                       'nodes':sample['nodes'],'cells':sample['cells']})
+                if collect_normalization and split=='train':stats.add(sample['normalization'])
+    finally:
+        if pool is not None:pool.shutdown(wait=True,cancel_futures=True)
     for left,right in [('train','valid'),('train','test'),('valid','test')]:
         if geometries[left]&geometries[right]:raise ValueError('Geometry leakage between '+left+' and '+right)
     if len(records['train'])<2:raise ValueError('Formal training needs at least two training samples')
     signature=hashlib.sha256(json.dumps({'splits':records,'domain':protocol,'wall_distance':wall,'fixed_conditions':fixed},sort_keys=True).encode()).hexdigest()
-    return {'splits':records,'signature':signature,'domain':protocol,'wall_distance':wall,
+    manifest={'splits':records,'signature':signature,'domain':protocol,'wall_distance':wall,
             'geometry_split':{k:sorted(v) for k,v in geometries.items()},'fixed_conditions':fixed,
             'scope':'full-domain nodal evaluation' if protocol=='full' else 'selected patches only; not full-flow-field accuracy'}
+    if collect_normalization:manifest['training_normalization']=stats.state()
+    return manifest
 
 
 def store_for(manifest,split,cache_size=1):
     rows=manifest['splits'][split]
-    return SampleStore([r['path'] for r in rows],cache_size,[r['fingerprint'] for r in rows])
+    return SampleStore([r['path'] for r in rows],cache_size,[r['fingerprint'] for r in rows],
+                       manifest.get('registered_files'),manifest.get('sample_dependencies'))
 
 
 def fit_streaming_pod(train,norm,rank,directory,chunk=65536):
@@ -251,8 +293,12 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
         if saved['completed_epochs']>0 and not best_path.exists():raise ValueError('Missing validation-best checkpoint')
     set_global_seed(config['seed'])
     train=store_for(manifest,'train',config['cache_samples']);valid=store_for(manifest,'valid',config['cache_samples'])
-    print(f'{name}: '+('restoring normalization' if saved else f'fitting normalization over {len(train)} training samples'),flush=True)
-    norm=Normalizer.from_state(saved['normalization']) if saved else Normalizer(train,progress=lambda message:print(name+': '+message,flush=True))
+    print(f'{name}: '+('restoring normalization' if saved else ('using registered normalization' if 'training_normalization' in manifest else f'fitting normalization over {len(train)} training samples')),flush=True)
+    if saved:norm=Normalizer.from_state(saved['normalization'])
+    elif 'training_normalization' in manifest:
+        norm=Normalizer.from_state(manifest['training_normalization'])
+        print(f'{name}: reusing shared training-only normalization; no second dataset pass',flush=True)
+    else:norm=Normalizer(train,progress=lambda message:print(name+': '+message,flush=True))
     print(f'{name}: normalization ready; building model',flush=True)
     model=build_model(name,train,norm,config,state=saved['state_dict'] if saved else None,scratch=folder/'pod_scratch').to(device)
     from .fann_model_parallel import configure
