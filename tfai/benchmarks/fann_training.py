@@ -213,7 +213,7 @@ def prepare_input(model,norm,sample,device):
     return model.prepare(graph,sample['original_node_ids'])
 
 
-def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=None):
+def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=None,return_statistics=False):
     """Node-weighted six-channel metrics in physical units; no target projection."""
     model.eval();sse=np.zeros(6);absolute=np.zeros(6);total=np.zeros(6);square=np.zeros(6)
     count=0;normalized_sse=0.;near_sse=np.zeros(6);near_count=0;rows=[]
@@ -248,11 +248,16 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
             del prediction
     denominator=square-total**2/count
     r2=[float(1-sse[i]/denominator[i]) if denominator[i]>0 else None for i in range(6)]
-    return {'normalized_mse':normalized_sse/(count*6),'nodes':count,'cases':len(store),'fields':list(FIELDS),
+    result={'normalized_mse':normalized_sse/(count*6),'nodes':count,'cases':len(store),'fields':list(FIELDS),
             'units':['m/s','m/s','m/s','Pa','K','kg/m^3'],'rmse':np.sqrt(sse/count).tolist(),
             'mae':(absolute/count).tolist(),'r2':r2,
             'near_wall':{'threshold_m':near_wall,'nodes':near_count,'rmse':np.sqrt(near_sse/near_count).tolist() if near_count else None},
             'samples':rows}
+    if return_statistics:
+        result['statistics']={'sse':sse.tolist(),'absolute':absolute.tolist(),'total':total.tolist(),
+            'square':square.tolist(),'normalized_sse':normalized_sse,'count':count,
+            'near_sse':near_sse.tolist(),'near_count':near_count}
+    return result
 
 
 def assert_resume_config(old,new):

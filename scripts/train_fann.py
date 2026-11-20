@@ -9,7 +9,7 @@ from tfai.benchmarks.fann_training import train_one, atomic_json, RunLockedError
 from tfai.benchmarks.fann_startup_cache import load_startup
 
 
-def main():
+def build_parser():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--splits',type=Path,required=True)
     p.add_argument('--models',nargs='+',choices=MODELS,default=list(MODELS))
@@ -41,6 +41,11 @@ def main():
     p.add_argument('--graph-edge-chunk',type=int,default=262144)
     p.add_argument('--graph-cache-mb',type=int,default=1024)
     p.add_argument('--max-updates',type=int,help='Stop and save after this many additional updates; recovery verification')
+    return p
+
+
+def main():
+    p=build_parser()
     a=p.parse_args()
     if a.epochs<1 or a.patience<1 or a.rank<1 or a.pod_geometry_bins<1 or a.grad_clip<=0 or a.learning_rate<=0 or not 0<a.min_lr<=a.learning_rate:
         p.error('Invalid budget, rank, clipping or learning-rate setting')

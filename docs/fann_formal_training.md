@@ -389,3 +389,104 @@ unset FANN_STARTUP_FORCE
 缓存路径和进度见 `logs/fann_startup_作业号.out`，日志会明确报告 cache hit、登记或失效原因。
 
 相关回归41项通过；详见 `verification/fann_startup_cache.json`。已经运行的进程不会自动采用新缓存，更新对新启动的程序生效。
+
+## 编号1、5的跨节点 DDP
+
+UNet 和 Transolver-3 已有单进程每GPU、跨节点的 DDP 入口：
+`train_fann_ddp.py` 和 `slurm_fann_ddp.sh`。每张卡处理一个完整算例，随后同步梯度，
+因此每卡仍需容纳完整算例。此入口独立于编号2/3/4/6的按层拆分；DDP脚本固定
+`TURBINE_FANN_PIPELINE_GPUS=1`，不把这两种并行方式混用。
+
+默认每个数组元素申请 **2节点×每节点8卡**，数组编号仍为1、5。
+两个模型各自申请这份资源，不是共享同一份16卡分配。
+一个节点启动一个 torchrun agent，每个agent再启动本节点各GPU的worker。
+所有节点必须能读取同一项目、准备数据、启动缓存及结果目录，并使用同一厂商PyTorch环境。
+后端默认 `FANN_DDP_BACKEND=nccl`，需要集群的沐曦PyTorch实际提供对应分布式后端和跨节点通信支持。
+这里本机测试使用的是 NVIDIA NCCL，不能代替 X203 的互联和后端验证。
+不要把 CUDA/NCCL 软件栈替换进现有沐曦环境；接口是否可用以集群安装为准。
+
+### 先做小规模跨节点检查
+
+沿用已登记数据的 FANN_SPLITS；使用独立结果目录，先测两节点、每节点两卡：
+
+```bash
+git pull --ff-only origin master
+export FANN_RUN_ROOT="$PWD/runs/fann_ddp_probe_01"
+export FANN_DDP_GPUS_PER_NODE=2
+export FANN_MAX_UPDATES=1
+unset FANN_RESUME FANN_STEPS
+sbatch --array=1,5 --nodes=2 --gres=gpu:2 --cpus-per-task=8 scripts/slurm_fann_ddp.sh
+```
+
+一张卡一份完整算例，一个全局更新最多处理4个不同算例。安全检查停止后所有worker以0退出，
+日志标记 `DDP interrupted` / `Safe DDP stop`，`last.pt` 与 `status.json` 保存中断位置。
+**这里的0是主动检查停止，不代表正式训练完成；与单卡入口的130约定不同。**
+真正算子错误、OOM或通信错误会导致torchrun/srun非零退出。
+
+日志为 `logs/fann_ddp_ARRAYID_TASKID.out` / `.err`。
+`MASTER_ADDR` 取第一个分配节点，端口按数组号和任务号生成；可用
+`FANN_MASTER_ADDR` / `FANN_MASTER_PORT` 覆盖。网络接口及通信环境变量按集群管理员配置，
+脚本不硬编码网卡名称，也不强制关闭高速互联。
+
+### 正式训练或迁移现有单卡检查点
+
+小规模检查通过后，选择结果根目录并恢复8卡/节点：
+
+```bash
+unset FANN_MAX_UPDATES
+export FANN_DDP_GPUS_PER_NODE=8
+export FANN_EPOCHS=400
+export FANN_RUN_ROOT="/原来包含UNet或Transolver_3目录的运行根目录"
+export FANN_RESUME=1
+sbatch --array=1,5 scripts/slurm_fann_ddp.sh
+```
+
+原运行目录必须有对应模型的 `last.pt`，已完成过验证的模型还需 `best.pt`。
+如果两模型原本属于不同根目录，分别设置目录并分别提交 `--array=1` 和 `--array=5`。
+原作业仍运行时不能向相同目录重复提交；rank0持有与单卡入口相同的 `run.lock`。
+新建训练使用新目录并取消 FANN_RESUME。不要把小规模检查的结果误认为正式完整结果。
+
+### 训练、指标和恢复语义
+
+- 每轮以 seed+epoch 生成全局算例顺序，每个真实训练算例恰好处理一次。
+  不使用会补齐重复样本的采样器，也不丢弃末尾不足一批的数据。
+- 一次全局更新最多合并 world_size 个完整算例，梯度按各算例实际节点/通道元素数加权。
+  最后一批空闲rank执行极小的零梯度占位前向，不加载额外真实样本，BatchNorm处于eval模式。
+- 有效batch随卡数变化：250个训练算例、16卡时，每轮约16次Adam更新，而原单卡是250次。
+  学习率默认仍1e-4，不自动按卡数扩大。400轮的收敛轨迹不能当作单卡轨迹的精确加速重放。
+- UNet使用本地普通BatchNorm，并按标准DDP行为广播rank0的运行统计；未启用SyncBatchNorm。
+  验证/测试前再次同步全部buffer，确保各rank评估相同冻结模型；精度变化仍需实测。
+- 验证和测试按算例分配给各rank，不补齐重复样本。汇总全局SSE、绝对误差、真值和/平方和、
+  节点数及近壁统计，再计算RMSE/MAE/R²，不能简单平均各rank的RMSE。
+- 所有rank用同一个完整验证集指标调整学习率、选最优模型和早停。
+  测试指标仅在训练结束、加载验证最优权重之后计算，不参与模型选择。
+- 只有rank0写模型/优化器/调度器/历史/状态，检查点保留每rank RNG、全局算例位置、
+  未完成epoch的累计损失、world_size和归一化。默认每10次全局更新及每轮保存last；
+  `FANN_DDP_CHECKPOINT_EVERY` 可调整间隔。
+- 权重键不带 `module.`，与现有冻结评估入口兼容。相同world_size、数据和配置下支持批次边界恢复；
+  测试验证CPU路径的权重、Adam状态和历史精确一致。迁移单卡检查点或改变world_size时，
+  读取原权重和优化器状态，但有效batch改变，不能承诺后续轨迹逐位一致。
+- 最终预测按rank/原始样本索引存入 `predictions/{valid,test}/rank_XXXXX/case_XXXXX/`，
+  每个文件保留原节点ID和source。`report.json` 仍是全局指标，可用于现有compare_fann汇总。
+
+### 协调停止
+
+Slurm提前300秒向batch shell发送USR1，脚本写共享停止标记；各rank在完整全局批次或验证算例轮次
+边界共同停止并保存，避免直接终止torchrun agent导致其他节点仍在通信中。
+手动请求安全停止可在提交节点执行：
+
+```bash
+touch "$FANN_RUN_ROOT/UNet/STOP"
+# 或 Transolver_3/STOP
+```
+
+确认保存并退出后，删除对应STOP文件，再以FANN_RESUME=1提交。
+直接scancel、节点故障或强制kill不保证有时间完成新检查点，最多回到最近一次已保存更新。
+如果最终冻结评估期间停止，保留训练结束时的last，不会把best权重与末次Adam状态混写。
+
+本机已通过两进程Gloo、双GPU NCCL和双torchrun agent控制流程测试；双agent仍位于同一物理主机，
+不构成真实X203跨节点验证。测试使用小样例，未验证X203整域显存、网络吞吐或多节点加速倍数。
+
+49项相关检查通过（包括8项DDP专项及原流程回归），验证记录见 `verification/fann_ddp.json`。
+
+DDP脚本默认 Transolver 分块32768并保留梯度重计算；如单步显存不足，可将 `TURBINE_FANN_TRANSOLVER_CHUNK_SIZE=8192` 后重试独立容量目录。

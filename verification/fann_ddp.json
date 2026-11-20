@@ -1,0 +1,69 @@
+{
+  "scope": "Multi-node-capable code validated locally; no physical X203 cross-node run or full-domain scaling result",
+  "tests": {
+    "unique_related_tests": 49,
+    "result": "passed",
+    "runs": [
+      {
+        "command": ".venv/bin/python -m unittest tests.test_fann_ddp tests.test_fann_formal tests.test_fann_startup_cache tests.test_fann_speed tests.test_fann_adapters tests.test_fann_bounded_graphs",
+        "tests": 49,
+        "seconds": 121.885,
+        "result": "passed"
+      }
+    ]
+  },
+  "gpu_evidence": {
+    "scope": "Two torchrun node agents with NCCL on two RTX3090 GPUs on ONE physical host; not an X203 inter-node network test",
+    "results": {
+      "UNet": {
+        "state": "complete",
+        "world_size": 2,
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          1.9836207749114099,
+          3.6579170108090855,
+          0.7305608422734924,
+          324.67702603376614,
+          2.1673061276994283,
+          0.7292891466435475
+        ]
+      },
+      "Transolver_3": {
+        "state": "complete",
+        "world_size": 2,
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          2.2039304487053717,
+          3.6307061276415276,
+          0.7416512152887559,
+          346.9895258595184,
+          2.0354544348838184,
+          0.8398819301344903
+        ]
+      }
+    }
+  },
+  "invariants": [
+    "Each train case once per epoch; no padded data repeats or dropped tail",
+    "Global gradient agrees with node-weighted reference on unequal-size cases",
+    "DDP frozen validation/test metrics agree with single-process frozen evaluation",
+    "Same-world interrupted resume exactly restores CPU weights, Adam and history",
+    "Existing single-process checkpoint imports without state key changes",
+    "Shared stop request saves state; active run lock remains protected"
+  ],
+  "limitations": [
+    "GPU smoke fixtures are small, not the 9.8-million-node production dataset",
+    "Two torchrun agents were tested on one physical host",
+    "X203 distributed backend, inter-node networking, capacity and throughput require cluster preflight",
+    "Global batch changes with world size; LR is not automatically scaled",
+    "UNet uses local BatchNorm and rank0 buffer broadcasts, not SyncBatchNorm"
+  ]
+}
