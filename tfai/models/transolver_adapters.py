@@ -35,6 +35,7 @@ class Transolver3(nn.Module):
         self.input_dim=input_dim
         s=SCALES[config["model"]["scale"]]
         self.chunk_size=int(config["model"].get("transolver_chunk_size",8192))
+        self.use_checkpoint=True
         self.model=OfficialTransolver3(space_dim=3,fun_dim=input_dim-3,out_dim=output_dim,
             n_layers=s["layers"],n_hidden=s["hidden"],n_head=s["heads"],slice_num=s["slices"],
             mlp_ratio=2,dropout=0.,unified_pos=False)
@@ -44,7 +45,7 @@ class Transolver3(nn.Module):
         for x in graph_features(data,self.input_dim):
             chunks=[part.unsqueeze(0) for part in x.split(self.chunk_size)]
             # Every chunk contributes to the same global physical state per layer.
-            result=self.model(chunks,use_checkpoint=self.training,input_list=True)
+            result=self.model(chunks,use_checkpoint=self.training and self.use_checkpoint,input_list=True)
             outputs.append(torch.cat(result,dim=1).squeeze(0))
         return torch.cat(outputs,dim=0)
 

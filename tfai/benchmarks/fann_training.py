@@ -142,6 +142,14 @@ def build_model(name,train,norm,config,state=None,scratch=None):
             pod_state=fit_streaming_pod(train,norm,config['rank'],scratch)
     model=FannAdapter(name,train,norm,scale=config['scale'],grid=config['grid'],rank=config['rank'],
                       pod_state=pod_state,pod_geometry_bins=config['pod_geometry_bins'])
+    if name=='UNet':
+        model.unet_mapping_cache=os.environ.get('TURBINE_FANN_UNET_CACHE','runs/fann_unet_mapping_cache_v1')
+    if name=='Transolver_3':
+        chunk=int(os.environ.get('TURBINE_FANN_TRANSOLVER_CHUNK_SIZE','8192'))
+        if chunk<1:raise ValueError('Transolver chunk size must be positive')
+        model.net.chunk_size=chunk
+        model.net.use_checkpoint=os.environ.get('TURBINE_FANN_TRANSOLVER_CHECKPOINT','1')=='1'
+        print(f'Transolver_3: chunk={chunk} checkpoint={model.net.use_checkpoint}',flush=True)
     if name=='GeoTransolver':
         model.net.activation_offload=os.environ.get('TURBINE_GEO_ACTIVATION_OFFLOAD','1')=='1'
         chunk=int(os.environ.get('TURBINE_GEO_NODE_CHUNK','32768'))
@@ -254,6 +262,8 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
         best=saved['best_score'];bad=saved['early_stopping_counter'];history=saved['history']
         pending_sum=saved['pending_loss_sum'];pending_count=saved['pending_elements'];elapsed=saved.get('training_seconds',0.)
         restore_rng_state(saved['rng_state'])
+    profile_steps=int(os.environ.get('TURBINE_FANN_PROFILE_STEPS','0'))
+    if profile_steps<0:raise ValueError('TURBINE_FANN_PROFILE_STEPS must be nonnegative')
     stopped=False;interrupted=False;started=time.perf_counter();updates=0
     def checkpoint():
         return {'format_version':FORMAT_VERSION,'model':name,'state_dict':model.state_dict(),
@@ -264,7 +274,9 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
             'rng_state':capture_rng_state(),'training_seconds':elapsed+time.perf_counter()-started,
             'execution_runtime':{'pipeline_devices':[str(d) for d in getattr(model,'pipeline_devices',[device])],
                 'geo_activation_offload':getattr(model.net,'activation_offload',False),
-                'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None)}}
+                'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None),
+                'transolver_chunk':getattr(model.net,'chunk_size',None),
+                'transolver_checkpoint':getattr(model.net,'use_checkpoint',None)}}
     old_handlers={}
     def stop(signum,frame):
         nonlocal interrupted
@@ -283,7 +295,19 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
             for offset in range(position,len(order)):
                 if interrupted or (max_updates is not None and updates>=max_updates):
                     interrupted=True;break
+                profile=updates<profile_steps
+                phase_times={}
+                def profile_sync():
+                    if profile and str(device).startswith('cuda'):
+                        for d in getattr(model,'pipeline_devices',[device]):torch.cuda.synchronize(d)
+                profile_sync();phase_started=time.perf_counter()
+                def mark(phase):
+                    nonlocal phase_started
+                    if profile:
+                        profile_sync();now=time.perf_counter()
+                        phase_times[phase]=now-phase_started;phase_started=now
                 sample=train[order[offset]];optimizer.zero_grad(set_to_none=True)
+                mark('load_sample')
                 executor=getattr(model,'graph_executor',None)
                 if executor is not None and name in ['GCN','Graph_Transformer']:
                     case_rng=capture_rng_state()
@@ -292,19 +316,30 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
                         optimizer.zero_grad(set_to_none=True);restore_rng_state(case_rng)
                         interrupted=True;break
                     elements=sample['targets'].size
+                    mark('input_forward_backward')
                 else:
-                    prediction=(executor.graph_unet(model,norm,sample,device) if executor is not None
-                                else model(prepare_input(model,norm,sample,device)))
+                    if executor is not None:
+                        prediction=executor.graph_unet(model,norm,sample,device)
+                        mark('input_forward')
+                    else:
+                        inputs=prepare_input(model,norm,sample,device);mark('prepare_input')
+                        prediction=model(inputs);del inputs;mark('forward')
                     target=norm.target(sample,device)
                     if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
                     loss=(prediction-target).square().mean()
                     if not torch.isfinite(loss):raise ValueError('Nonfinite training loss')
+                    mark('target_loss')
                     loss.backward();loss_value=float(loss.item());elements=target.numel()
+                    mark('backward')
                     del prediction,target,loss
                 torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
                 optimizer.step();global_step+=1;updates+=1;position=offset+1
+                mark('clip_optimizer')
                 pending_sum+=loss_value*elements;pending_count+=elements
                 if case_checkpoint:atomic_torch_save(checkpoint(),last_path)
+                if profile:
+                    mark('checkpoint')
+                    print(f'{name} step_profile step={global_step} nodes={len(sample["coordinates"])} seconds='+json.dumps(phase_times),flush=True)
             if interrupted:
                 atomic_torch_save(checkpoint(),last_path)
                 atomic_json({'state':'interrupted','model':name,'completed_epochs':epoch,'position':position,

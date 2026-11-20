@@ -1,0 +1,55 @@
+{
+  "scope": "Local implementation/performance probes; no X203 speed claim",
+  "unet_mapping": {
+    "nodes": 9806346,
+    "cold_seconds": 19.17845449084416,
+    "warm_seconds": 0.11986107495613396,
+    "exact_input_and_gradient_parity": true
+  },
+  "transolver_prefix_probe": {
+    "scope": "One million-node prefix throughput probe, not full-domain training or accuracy",
+    "device": "NVIDIA GeForce RTX 3090",
+    "nodes": 1000000,
+    "results": {
+      "8192": {
+        "steps": [
+          {
+            "seconds": 2.443035718984902,
+            "loss": 0.29365962743759155
+          },
+          {
+            "seconds": 2.0951430811546743,
+            "loss": 0.2060547024011612
+          }
+        ],
+        "peak_gpu_gib": 2.781216621398926
+      },
+      "32768": {
+        "steps": [
+          {
+            "seconds": 0.5672462359070778,
+            "loss": 0.29365962743759155
+          },
+          {
+            "seconds": 0.545980067923665,
+            "loss": 0.2060547024011612
+          }
+        ],
+        "peak_gpu_gib": 2.870480537414551
+      }
+    }
+  },
+  "full_domain_transolver_capacity": {
+    "passed": false,
+    "reason": "Existing full-domain Transolver exceeds local 24GiB card for both chunk sizes; X203 64GiB full-case timing remains required"
+  },
+  "tests": {
+    "related_tests": 18,
+    "passed": true,
+    "additional_profile_resume_check": "passed"
+  },
+  "commands": [
+    ".venv/bin/python -m unittest tests.test_fann_speed tests.test_fann_formal",
+    "TURBINE_FANN_PROFILE_STEPS=1 .venv/bin/python -m unittest tests.test_fann_formal.FormalFannTests.test_interrupted_resume_matches_uninterrupted_optimizer_and_weights"
+  ]
+}

@@ -279,3 +279,51 @@ find . -maxdepth 1 -type f \( -name '*.out' -o -name '*.err' \) -exec mv -n -t l
 ```
 
 已提交或正在运行的作业不会因 git pull 自动修改原定日志路径；以上命令可移动现有日志。
+
+## UNet / Transolver-3 吞吐调优
+
+UNet 默认缓存体素中心到原始网格最近节点的映射，目录为
+`TURBINE_FANN_UNET_CACHE`（默认 `runs/fann_unet_mapping_cache_v1`）。
+缓存只包含几何映射，键包含完整归一化坐标及体素查询位置；不同网格、归一化或分辨率自动分开。
+不缓存目标场，不影响几何分组，不改变输入、插值方法、损失或梯度。
+首次遇到某个几何仍需建树，后续样本和 epoch 复用。设置该变量为空字符串可禁用。
+本机980万节点样例的映射构建约19.18秒，命中约0.12秒；这只是映射阶段，不能作为整轮加速比。
+
+Transolver-3 原默认块大小8192现在可通过
+`TURBINE_FANN_TRANSOLVER_CHUNK_SIZE` 调整。64GiB卡可先比较8192与32768，
+显存允许时再测65536。所有块仍累积到共同全局切片，每个完整算例仍一次参数更新。
+大块可减少 Python、算子启动和重计算调用次数，但会增加瞬时工作区；不能保证所有后端都加速。
+`TURBINE_FANN_TRANSOLVER_CHECKPOINT=1` 默认保留重计算；设0可以测关闭重计算的速度与显存，
+但本机未验证千万节点无重计算容量，不建议未经单步检查就长期运行。
+改变分块会改变浮点求和顺序，续训读取相同参数和 Adam 状态，但不能保证逐位相同。
+
+`TURBINE_FANN_PROFILE_STEPS=3` 会同步设备并记录本次启动前3次参数更新的
+数据加载、输入准备、前向、目标与损失、反向及优化器耗时，日志标识为 `step_profile`。
+这是诊断计时，会引入同步开销；默认0关闭。加载时间包括 NPZ 解压与完整性检查。
+该计时不覆盖启动时的数据检查/归一化，也不包含整轮验证，不能把各步之和当成整轮耗时。
+
+等原作业停止且 `last.pt` 可用后，在原 `FANN_SPLITS` 和 `FANN_RUN_ROOT` 下可测试续训：
+
+```bash
+export FANN_RESUME=1
+export FANN_MAX_UPDATES=3
+export TURBINE_FANN_PROFILE_STEPS=3
+export TURBINE_FANN_TRANSOLVER_CHUNK_SIZE=32768
+export TURBINE_FANN_TRANSOLVER_CHECKPOINT=1
+export TURBINE_FANN_PIPELINE_GPUS=1
+sbatch --array=1,5 scripts/slurm_fann_array.sh
+```
+
+3次更新后保存并以130退出。首轮缓存可能未热，UNet还应比较后续重复几何的命中时间。
+检查日志耗时和显存后，`unset FANN_MAX_UPDATES TURBINE_FANN_PROFILE_STEPS`，保持
+`FANN_RESUME=1` 并提交同一脚本继续。不要在旧作业仍占用同一输出目录时重复提交。
+更新代码不会改变已经运行的 Python 进程。
+
+编号1、5当前尚未接入节点内按层多卡脚本。仅多申请 GPU 不会自动加速它们。
+若单步容量已满足，跨算例的数据并行是进一步提升 epoch 吞吐的方向；这需要实现梯度同步、
+跨rank指标归约和一致的保存/恢复协议，并评估有效batch变化，不能直接套用现有四模型的按层拆分。
+
+本机 RTX3090 的百万节点前缀吞吐探针（不是整域训练）：8192与32768分块的第二步耗时约
+2.10/0.55秒，峰值GPU分配2.78/2.87 GiB，前两步损失一致。约3.8倍仅适用于该本机探针，
+不能作为 X203 整域 epoch 的加速承诺。本机24GiB卡无法容纳这两个配置的千万节点完整模型；
+X203需按上述方式实测。验证记录见 `verification/fann_speed_probe.json`。

@@ -175,7 +175,12 @@ class FannAdapter(nn.Module):
         # Tensor axes D/H/W correspond to z/y/x; grid_sample expects x/y/z.
         zz,yy,xx=torch.meshgrid(axes[2],axes[1],axes[0],indexing='ij')
         positions=torch.stack([xx,yy,zz],-1)
-        distance,ids=cKDTree(xyz.cpu().numpy()).query(positions.cpu().numpy().reshape(-1,3))
+        cache=getattr(self,'unet_mapping_cache',None)
+        if cache:
+            from .fann_unet_cache import nearest_mapping
+            distance,ids=nearest_mapping(xyz.cpu().numpy(),positions.cpu().numpy().reshape(-1,3),cache)
+        else:
+            distance,ids=cKDTree(xyz.cpu().numpy()).query(positions.cpu().numpy().reshape(-1,3))
         nearest=graph.x[torch.as_tensor(ids,device=xyz.device)]
         features=torch.cat([nearest,torch.as_tensor(distance,device=xyz.device,dtype=xyz.dtype)[:,None]],1)
         volume=features.T.reshape(1,self.input_dim+1,self.grid,self.grid,self.grid)
