@@ -1,0 +1,161 @@
+{
+  "scope": "Four new faNN models support multi-node synchronous data parallelism; local correctness/capacity tests only, no X203 inter-node throughput claim",
+  "gradient_engines": {
+    "GCN": "Complete local owner+halo backward, then bucketed all-reduce mean",
+    "Graph_UNet": "Complete local global-TopK sparse backward, then bucketed all-reduce mean",
+    "Graph_Transformer": "Complete local owner+halo backward, then bucketed all-reduce mean",
+    "GeoTransolver": "Native PyTorch DDP preserving chunk recomputation and CPU saved-tensor offload"
+  },
+  "regression": {
+    "unique_tests": 55,
+    "result": "passed",
+    "groups": [
+      {
+        "coverage": "8 existing DDP and 5 new four-model integration tests",
+        "executed_tests": 13,
+        "seconds": 259.918,
+        "result": "passed"
+      },
+      {
+        "coverage": "Heavy-model launcher and 41 single/multi-GPU/cache/formal regressions",
+        "executed_tests": 42,
+        "seconds": 37.337,
+        "result": "passed"
+      }
+    ],
+    "coverage": [
+      "Unequal-size cases and different owner counts",
+      "Global gradients/Adam agree with original dense node-weighted objective",
+      "Short final batch uses each real sample once",
+      "Same-world CPU resume preserves parameters, Adam and history exactly",
+      "All four old optimized single/model-parallel checkpoints import",
+      "Owner+halo cancellation discards partial global batch and restores RNG",
+      "All four frozen DDP metrics agree with single-process evaluation",
+      "Heavy launcher ignores stale 8-GPU environment default"
+    ]
+  },
+  "small_gpu_two_agents": {
+    "scope": "Two torchrun agents on two physical RTX3090 GPUs on ONE host; small unequal-size cases, not X203 inter-node or full-domain throughput evidence",
+    "results": {
+      "GCN": {
+        "state": "complete",
+        "world_size": 2,
+        "gradient_sync": "case_allreduce",
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          1.9809298401173328,
+          3.814744202721655,
+          0.6736865369759489,
+          348.30775041831157,
+          2.1008785047995326,
+          0.8826810974071456
+        ]
+      },
+      "Graph_UNet": {
+        "state": "complete",
+        "world_size": 2,
+        "gradient_sync": "case_allreduce",
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          1.9002002742709052,
+          3.9642061459026645,
+          0.8492400177182706,
+          305.3575540650419,
+          1.9092669429254792,
+          0.9495858527184498
+        ]
+      },
+      "Graph_Transformer": {
+        "state": "complete",
+        "world_size": 2,
+        "gradient_sync": "case_allreduce",
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          3.068817777936922,
+          2.603203960629302,
+          0.8921954336385407,
+          340.1205360823445,
+          2.1481437143846764,
+          0.9904748650896431
+        ]
+      },
+      "GeoTransolver": {
+        "state": "complete",
+        "world_size": 2,
+        "gradient_sync": "native_ddp",
+        "optimizer_steps": 2,
+        "train_cases": 3,
+        "validation_cases": 1,
+        "test_cases": 1,
+        "test_nodes": 8,
+        "test_rmse": [
+          2.4573991328600155,
+          4.800011822539049,
+          0.6591427297312095,
+          423.7530145138443,
+          1.6496949166724348,
+          0.5569686920263691
+        ]
+      }
+    }
+  },
+  "real_geo_capacity": {
+    "scope": "Capacity probe: BOTH ranks replicate the same real full faNN case with single-case normalization; not formal distinct-case DDP training, accuracy, X203 or inter-node throughput evidence",
+    "world_size": 2,
+    "gpu": "RTX3090 24GiB",
+    "results": [
+      {
+        "rank": 0,
+        "nodes": 9806346,
+        "optimizer_steps": 1,
+        "normalized_mse": 1.7232064008712769,
+        "peak_gpu_GiB": 18.213541507720947,
+        "peak_host_GiB": 58.930904388427734,
+        "seconds": 48.08118388010189
+      },
+      {
+        "rank": 1,
+        "nodes": 9806346,
+        "optimizer_steps": 1,
+        "normalized_mse": 1.7232064008712769,
+        "peak_gpu_GiB": 18.213541507720947,
+        "peak_host_GiB": 58.931983947753906,
+        "seconds": 47.933109142119065
+      }
+    ]
+  },
+  "resource_defaults": {
+    "light_indices": [
+      1,
+      2,
+      4,
+      5
+    ],
+    "heavy_indices": [
+      3,
+      6
+    ],
+    "heavy_nodes": 2,
+    "heavy_gpus_per_node": 1,
+    "heavy_host_memory_per_node": "128G"
+  },
+  "limitations": [
+    "No physical X203 multi-node run was possible locally",
+    "All four distinct-case DDP integration tests use small fixtures",
+    "Real full-case capacity test replicated the same geometry on two GPUs; it is not a multi-geometry accuracy benchmark",
+    "Heavy-model rank count requires node CPU RAM sizing; memory was moved to CPU, not eliminated",
+    "One rank still needs a complete-case optimized execution path; this is not intra-case cross-node partitioning"
+  ]
+}

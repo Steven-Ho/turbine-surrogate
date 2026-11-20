@@ -276,7 +276,7 @@ def train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
         return _train_one(name,manifest,config,folder,device,resume,max_updates)
 
 
-def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
+def execution_config(name,config):
     config=dict(config)
     if name not in GRAPH_MODELS:
         config={key:value for key,value in config.items() if not key.startswith('graph_')}
@@ -287,6 +287,11 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
         from tfai.models._vendor.geotransolver2.spatial_neighbors import SCHEMA
         config['geo_neighbor_policy']={'schema':SCHEMA,'backend':os.environ.get('TURBINE_GEO_QUERY_BACKEND','kdtree'),
             'reference_max_points':int(os.environ.get('TURBINE_GEO_REFERENCE_MAX_POINTS','32768'))}
+    return config
+
+
+def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
+    config=execution_config(name,config)
     last_path=folder/'last.pt';best_path=folder/'best.pt'
     if not resume and (last_path.exists() or best_path.exists()):raise ValueError('Existing run; use --resume or a new output directory')
     if resume and not last_path.exists():raise ValueError('No last.pt to resume')

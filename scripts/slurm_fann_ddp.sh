@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=fann_ddp
-#SBATCH --array=1,5
+#SBATCH --array=1,2,4,5
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:8
@@ -23,13 +23,23 @@ export FANN_STARTUP_WORKERS="${FANN_STARTUP_WORKERS:-1}"
 export TURBINE_FANN_UNET_CACHE="${TURBINE_FANN_UNET_CACHE:-$PWD/runs/fann_unet_mapping_cache_v1}"
 export TURBINE_FANN_TRANSOLVER_CHUNK_SIZE="${TURBINE_FANN_TRANSOLVER_CHUNK_SIZE:-32768}"
 export TURBINE_FANN_TRANSOLVER_CHECKPOINT="${TURBINE_FANN_TRANSOLVER_CHECKPOINT:-1}"
+export TURBINE_GEO_QUERY_BACKEND="${TURBINE_GEO_QUERY_BACKEND:-kdtree}"
+export TURBINE_GEO_REFERENCE_MAX_POINTS="${TURBINE_GEO_REFERENCE_MAX_POINTS:-0}"
+export TURBINE_GEO_ACTIVATION_OFFLOAD="${TURBINE_GEO_ACTIVATION_OFFLOAD:-1}"
+export TURBINE_GEO_NODE_CHUNK="${TURBINE_GEO_NODE_CHUNK:-32768}"
+export TURBINE_GEO_CACHE_DIR="${TURBINE_GEO_CACHE_DIR:-$PWD/runs/fann_neighbor_cache}"
+export TURBINE_FANN_GRAPH_CACHE="${TURBINE_FANN_GRAPH_CACHE:-$PWD/runs/fann_graph_topology_cache_v1}"
 : "${FANN_SPLITS:?Set FANN_SPLITS to prepared splits.json}"
 : "${FANN_RUN_ROOT:?Set FANN_RUN_ROOT to the result root}"
 if [[ -n "${FANN_STEPS:-}" ]]; then echo 'Unset FANN_STEPS; use FANN_EPOCHS.' >&2; exit 2; fi
 case "${SLURM_ARRAY_TASK_ID:?}" in
   1) model=UNet;;
+  2) model=GCN;;
+  3) model=Graph_UNet;;
+  4) model=Graph_Transformer;;
+  6) model=GeoTransolver;;
   5) model=Transolver_3;;
-  *) echo 'DDP supports array indices 1 and 5' >&2; exit 2;;
+  *) echo 'DDP supports neural-model array indices 1-6' >&2; exit 2;;
 esac
 mapfile -t ddp_hosts < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
 export MASTER_ADDR="${FANN_MASTER_ADDR:-${ddp_hosts[0]}}"
@@ -49,6 +59,8 @@ srun --export=ALL --ntasks="$SLURM_NNODES" --ntasks-per-node=1 --kill-on-bad-exi
   fann-ddp --models "$model" --splits "$FANN_SPLITS" --output "$FANN_RUN_ROOT" --domain "${FANN_DOMAIN:-full}" \
   --epochs "${FANN_EPOCHS:-400}" --threads "${FANN_THREADS:-4}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" \
   --backend "${FANN_DDP_BACKEND:-nccl}" --timeout-minutes "${FANN_DDP_TIMEOUT_MINUTES:-120}" --checkpoint-every "${FANN_DDP_CHECKPOINT_EVERY:-10}" \
+  --graph-execution "${FANN_GRAPH_EXECUTION:-bounded}" --graph-owner-nodes "${FANN_GRAPH_OWNER_NODES:-32768}" \
+  --graph-edge-chunk "${FANN_GRAPH_EDGE_CHUNK:-262144}" --graph-cache-mb "${FANN_GRAPH_CACHE_MB:-1024}" \
   --stop-file "$FANN_DDP_STOP_FILE" "${extra[@]}" &
 launcher_pid=$!
 set +e

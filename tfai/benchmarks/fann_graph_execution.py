@@ -163,7 +163,7 @@ class BoundedGraphExecution:
                        edge_attr=torch.cat([delta,delta.norm(dim=1,keepdim=True)],dim=1)).to(device)
             yield graph,torch.as_tensor(part['owners'],device=device),part['nodes'][part['owners']]
 
-    def backward_sample(self,model,norm,sample,device,stop_requested=None):
+    def backward_sample(self,model,norm,sample,device,stop_requested=None,loss_scale=1.):
         """All owners once, enough halo, one summed objective; caller steps once."""
         value=0.;denominator=sample['targets'].size
         for graph,owners,global_ids in self.pieces(model,norm,sample,device):
@@ -172,7 +172,7 @@ class BoundedGraphExecution:
             target=torch.as_tensor((sample['targets'][global_ids]-norm.mean)/norm.scale,device=device)
             loss=(prediction-target).square().sum()/denominator
             if not torch.isfinite(loss):raise ValueError('Nonfinite partition loss')
-            loss.backward();value+=float(loss.item())
+            (loss*loss_scale).backward();value+=float(loss.item())
             del prediction,target,loss,graph
         return value
 

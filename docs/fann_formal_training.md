@@ -319,9 +319,8 @@ sbatch --array=1,5 scripts/slurm_fann_array.sh
 `FANN_RESUME=1` 并提交同一脚本继续。不要在旧作业仍占用同一输出目录时重复提交。
 更新代码不会改变已经运行的 Python 进程。
 
-编号1、5当前尚未接入节点内按层多卡脚本。仅多申请 GPU 不会自动加速它们。
-若单步容量已满足，跨算例的数据并行是进一步提升 epoch 吞吐的方向；这需要实现梯度同步、
-跨rank指标归约和一致的保存/恢复协议，并评估有效batch变化，不能直接套用现有四模型的按层拆分。
+编号1、5使用后文的跨算例DDP入口扩展吞吐；当前六种神经网络均支持多节点数据并行。
+仅增加 Slurm 申请卡数不能切换并行方式，需要使用相应的DDP脚本。
 
 本机 RTX3090 的百万节点前缀吞吐探针（不是整域训练）：8192与32768分块的第二步耗时约
 2.10/0.55秒，峰值GPU分配2.78/2.87 GiB，前两步损失一致。约3.8倍仅适用于该本机探针，
@@ -390,14 +389,15 @@ unset FANN_STARTUP_FORCE
 
 相关回归41项通过；详见 `verification/fann_startup_cache.json`。已经运行的进程不会自动采用新缓存，更新对新启动的程序生效。
 
-## 编号1、5的跨节点 DDP
+## 六种神经网络的跨节点 DDP
 
-UNet 和 Transolver-3 已有单进程每GPU、跨节点的 DDP 入口：
+UNet、GCN、Graph_UNet、Graph_Transformer、Transolver-3 和 GeoTransolver 均有单进程每GPU、跨节点的数据并行入口：
 `train_fann_ddp.py` 和 `slurm_fann_ddp.sh`。每张卡处理一个完整算例，随后同步梯度，
 因此每卡仍需容纳完整算例。此入口独立于编号2/3/4/6的按层拆分；DDP脚本固定
 `TURBINE_FANN_PIPELINE_GPUS=1`，不把这两种并行方式混用。
 
-默认每个数组元素申请 **2节点×每节点8卡**，数组编号仍为1、5。
+轻量入口默认每个数组元素申请 **2节点×每节点8卡**，默认数组为1、2、4、5。
+CPU卸载较重的3、6使用后文独立脚本，默认每节点1个进程。
 两个模型各自申请这份资源，不是共享同一份16卡分配。
 一个节点启动一个 torchrun agent，每个agent再启动本节点各GPU的worker。
 所有节点必须能读取同一项目、准备数据、启动缓存及结果目录，并使用同一厂商PyTorch环境。
@@ -461,7 +461,7 @@ sbatch --array=1,5 scripts/slurm_fann_ddp.sh
 - 所有rank用同一个完整验证集指标调整学习率、选最优模型和早停。
   测试指标仅在训练结束、加载验证最优权重之后计算，不参与模型选择。
 - 只有rank0写模型/优化器/调度器/历史/状态，检查点保留每rank RNG、全局算例位置、
-  未完成epoch的累计损失、world_size和归一化。默认每10次全局更新及每轮保存last；
+  未完成epoch的累计损失、world_size和归一化。轻量入口默认每10次全局更新及每轮保存last；重主存入口默认每次更新保存last；
   `FANN_DDP_CHECKPOINT_EVERY` 可调整间隔。
 - 权重键不带 `module.`，与现有冻结评估入口兼容。相同world_size、数据和配置下支持批次边界恢复；
   测试验证CPU路径的权重、Adam状态和历史精确一致。迁移单卡检查点或改变world_size时，
@@ -471,7 +471,7 @@ sbatch --array=1,5 scripts/slurm_fann_ddp.sh
 
 ### 协调停止
 
-Slurm提前300秒向batch shell发送USR1，脚本写共享停止标记；各rank在完整全局批次或验证算例轮次
+Slurm轻量入口提前300秒、重主存入口提前900秒向batch shell发送USR1，脚本写共享停止标记；各rank在完整全局批次或验证算例轮次
 边界共同停止并保存，避免直接终止torchrun agent导致其他节点仍在通信中。
 手动请求安全停止可在提交节点执行：
 
@@ -487,6 +487,74 @@ touch "$FANN_RUN_ROOT/UNet/STOP"
 本机已通过两进程Gloo、双GPU NCCL和双torchrun agent控制流程测试；双agent仍位于同一物理主机，
 不构成真实X203跨节点验证。测试使用小样例，未验证X203整域显存、网络吞吐或多节点加速倍数。
 
-49项相关检查通过（包括8项DDP专项及原流程回归），验证记录见 `verification/fann_ddp.json`。
+原DDP入口的验证见 `verification/fann_ddp.json`；新增四模型的验证见 `verification/fann_graph_ddp.json`。
 
 DDP脚本默认 Transolver 分块32768并保留梯度重计算；如单步显存不足，可将 `TURBINE_FANN_TRANSOLVER_CHUNK_SIZE=8192` 后重试独立容量目录。
+
+
+## 编号2、3、4、6的多节点数据并行
+
+四个模型保留已有的单卡整域显存优化：GCN/Graph_Transformer 使用 owner+halo，
+Graph_UNet 使用CPU全局邻接扩展与分块稀疏运算，GeoTransolver 使用全局切片、重计算和CPU激活卸载。
+新增并行只在不同算例之间分配工作；每卡仍处理完整算例，不把同一算例的几何切片当作独立数据样本。
+
+| 模型 | 梯度同步方式 | 入口 |
+|---|---|---|
+| GCN、Graph_Transformer | 本卡所有owner分块累计完成，再按全局节点数加权归约 | slurm_fann_ddp.sh，编号2、4 |
+| Graph_UNet | 保留全局池化和自定义稀疏前反向；完整算例结束后归约梯度 | slurm_fann_ddp_heavy.sh，编号3 |
+| GeoTransolver | 原生PyTorch DistributedDataParallel，保留重计算与CPU卸载 | slurm_fann_ddp_heavy.sh，编号6 |
+
+前三种图模型不是逐分块调用原生DDP封装，而是执行数学等价的完整算例数据并行：
+各rank先累计本地梯度，按同一个全局分母缩放，然后all_reduce并平均梯度，最后统一裁剪和Adam更新。
+这样不同rank即使节点数、owner分区数不同，也只在共同批次边界进行相同次数的通信。
+全局均未使用的参数保持grad=None，末尾无算例的rank贡献零梯度，不读取额外真实样本。
+owner分区中途收到停止请求时，所有rank共同丢弃未完成全局批次的梯度，恢复批次前RNG后保存，
+不会把半个算例的梯度写入Adam状态。全局验证、选模、测试及检查点约定与上节相同。
+
+### 推荐先运行的容量/通信检查
+
+沿用当前FANN_SPLITS和已建立的数据登记，不需要重做全库检查：
+
+```bash
+git pull --ff-only origin master
+export FANN_RUN_ROOT="$PWD/runs/fann_ddp_2346_probe_01"
+export FANN_MAX_UPDATES=1
+unset FANN_RESUME FANN_STEPS
+
+# GCN、Graph_Transformer：先两节点、每节点两卡
+export FANN_DDP_GPUS_PER_NODE=2
+sbatch --array=2,4 --nodes=2 --gres=gpu:2 --cpus-per-task=8 scripts/slurm_fann_ddp.sh
+
+# Graph_UNet、GeoTransolver：先两节点、每节点一张卡，每节点128G主存
+sbatch --array=3,6 scripts/slurm_fann_ddp_heavy.sh
+```
+
+重主存入口会用 `FANN_HEAVY_GPUS_PER_NODE`（默认1）覆盖进程数，不受之前残留的
+`FANN_DDP_GPUS_PER_NODE=8` 影响。提高进程数时必须同时提高GPU申请、CPU数及主存预算。
+例如确认节点主存足够后，可以设置 FANN_HEAVY_GPUS_PER_NODE=2 并以
+`--gres=gpu:2 --cpus-per-task=8 --mem=192G` 提交；这只是首次容量检查预算，不是所有几何的最低或保证值。
+
+本机约980万节点测试的单进程主存峰值：Graph_UNet约35.4GiB、GeoTransolver约59GiB。
+因此不能把8个GeoTransolver进程直接放入128G主存申请：仅进程峰值合计就约472GiB，
+还需系统和I/O余量。轻量入口的默认128G不是重主存模型的8进程配置。
+在真实X203数据上观察新增日志 `DDP capacity per rank` 的gpu_peak_GiB和process_peak_RSS_GiB，
+按节点汇总各rank的进程峰值并留余量，再选择并发数。进程峰值求和是保守估计，不等于同一时刻的系统内存读数。
+
+两种入口均会在一次完整全局更新后主动停止、保存last.pt并以0退出，状态为interrupted。
+先确认通信、GPU容量和CPU主存均正常；正式运行取消FANN_MAX_UPDATES，设置FANN_RESUME=1并使用相同输出目录，
+或者在原有单卡/按层多卡检查点目录继续。增加GPU进程数会改变全局batch，不能承诺后续轨迹逐位相同。
+
+迁移旧检查点时，保留原 FANN_GRAPH_OWNER_NODES、FANN_GRAPH_EDGE_CHUNK 和图执行模式，
+GeoTransolver的查询后端/reference策略也需相同。配置不一致会明确拒绝恢复；不要通过更换数据登记来绕过。
+例如旧owner=8192，就在提交前继续设置 `export FANN_GRAPH_OWNER_NODES=8192`。
+单节点按层多卡的权重键相同，可以载入；DDP会将每份完整模型放在一个GPU上，TURBINE_FANN_PIPELINE_GPUS固定1。
+
+日志：轻量入口为 `logs/fann_ddp_ARRAYID_TASKID.out/.err`，重主存入口为
+`logs/fann_ddp_heavy_ARRAYID_TASKID.out/.err`。已有运行进程不受git pull影响，旧进程停止后再在同一目录续训。
+
+本机双GPU、双torchrun agent（同一物理主机）已通过四模型小样例的完整训练/验证/测试。
+额外的GeoTransolver双GPU容量检查使用同一个真实980万节点样例在两个rank上重复，
+完成了前反向和一次Adam更新，每卡峰值约18.21GiB、每进程主存约58.93GiB；
+这是容量证据，不是两个不同几何的正式DDP训练或X203跨节点吞吐证据。
+
+当前55项相关检查通过；新增验证记录见 `verification/fann_graph_ddp.json`。尚未取得节点实际主存配置，因此重主存入口采用每节点1进程的保守默认值。

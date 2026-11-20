@@ -1,4 +1,4 @@
-"""One process per GPU, complete-case DDP for faNN UNet and Transolver-3.
+"""One process per GPU, complete-case DDP for the six neural faNN models.
 
 Global batch = up to world_size distinct cases; no repeated or dropped samples.
 Validation/test sufficient statistics are reduced, never rank RMSE averages.
@@ -20,10 +20,38 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_geometric.data import Data
 from .fann import FIELDS,Normalizer
 from .fann_training import (FORMAT_VERSION,RunLockedError,assert_resume_config,atomic_json,
-                           build_model,evaluate,file_hash,prepare_input,store_for)
+                           build_model,evaluate,file_hash,prepare_input,store_for,execution_config,GRAPH_MODELS)
 from tfai.training.optimization import build_lr_scheduler
 from tfai.utils.random_utils import set_global_seed
 from tfai.utils.torch_utils import atomic_torch_save
+
+
+SUPPORTED={'UNet','GCN','Graph_UNet','Graph_Transformer','Transolver_3','GeoTransolver'}
+
+
+def mean_case_gradients(model,bucket_bytes=25*1024**2):
+    """One synchronous DDP-equivalent mean after variable-count local partitions.
+
+    Absent ranks contribute zero; globally unused parameters remain None so Adam
+    does not spuriously advance their momentum. All ranks use identical buckets.
+    """
+    parameters=list(model.parameters());device=parameters[0].device
+    used=torch.tensor([p.grad is not None for p in parameters],dtype=torch.int32,device=device)
+    dist.all_reduce(used,op=dist.ReduceOp.MAX);flags=used.cpu().tolist()
+    bucket=[];size=0;world=dist.get_world_size()
+    def reduce_bucket():
+        if not bucket:return
+        flat=torch.cat([p.grad.reshape(-1) for p in bucket]);dist.all_reduce(flat);flat.div_(world)
+        offset=0
+        for parameter in bucket:
+            count=parameter.numel();parameter.grad.copy_(flat[offset:offset+count].view_as(parameter));offset+=count
+    for parameter,active in zip(parameters,flags):
+        if not active:parameter.grad=None;continue
+        if parameter.grad is None:parameter.grad=torch.zeros_like(parameter)
+        if bucket and (parameter.dtype!=bucket[0].dtype or size+parameter.numel()*parameter.element_size()>bucket_bytes):
+            reduce_bucket();bucket=[];size=0
+        bucket.append(parameter);size+=parameter.numel()*parameter.element_size()
+    reduce_bucket()
 
 
 def local_rng(device):
@@ -105,9 +133,11 @@ def train_ddp(name,manifest,config,folder,device,resume=False,max_updates=None,c
 
 def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_every,stop_file):
     rank=dist.get_rank();world=dist.get_world_size()
-    if name not in ('UNet','Transolver_3'):raise ValueError('DDP currently supports UNet and Transolver_3')
+    if name not in SUPPORTED:raise ValueError('Unsupported DDP model: '+name)
     if checkpoint_every<1:raise ValueError('Checkpoint interval must be positive')
-    config={key:value for key,value in config.items() if not key.startswith('graph_')}
+    config=execution_config(name,config)
+    manual=name in GRAPH_MODELS
+    if manual and config.get('graph_execution')!='bounded':raise ValueError('Graph-model DDP requires --graph-execution bounded')
     last_path=folder/'last.pt';best_path=folder/'best.pt'
     if not resume and (last_path.exists() or best_path.exists()):raise ValueError('Existing run; use --resume or a new output directory')
     if resume and not last_path.exists():raise ValueError('No last.pt to resume')
@@ -122,7 +152,10 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     dist.broadcast_object_list(norm_packet,src=0);norm=Normalizer.from_state(norm_packet[0])
     set_global_seed(config['seed'])
     model=build_model(name,[],norm,config,state=saved['state_dict'] if saved else None).to(device)
-    ddp=DDP(model,device_ids=[device.index] if device.type=='cuda' else None,broadcast_buffers=True)
+    if manual:
+        for parameter in model.parameters():dist.broadcast(parameter.data,src=0)
+        sync_buffers(model);ddp=None
+    else:ddp=DDP(model,device_ids=[device.index] if device.type=='cuda' else None,broadcast_buffers=True)
     optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'])
     scheduler=build_lr_scheduler(optimizer,{'lr_scheduler':{'enabled':True,'factor':config['lr_factor'],
         'patience':config['lr_patience'],'threshold':config['lr_threshold'],'cooldown':config['lr_cooldown'],'min_lr':config['min_lr']}})
@@ -160,7 +193,10 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 'rng_state':states[0],'training_seconds':elapsed+time.perf_counter()-started,
                 'distributed_state':{'world_size':world,'rng_states':states,'global_batch_cases':world,
                                      'batch_norm':'local BatchNorm; rank0 buffers broadcast'},
-                'execution_runtime':{'ddp_backend':dist.get_backend(),'transolver_chunk':getattr(model.net,'chunk_size',None)}}
+                'execution_runtime':{'ddp_backend':dist.get_backend(),'gradient_sync':'case_allreduce' if manual else 'native_ddp',
+                                     'transolver_chunk':getattr(model.net,'chunk_size',None),
+                                     'geo_activation_offload':getattr(model.net,'activation_offload',False),
+                                     'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None)}}
             atomic_torch_save(checkpoint,path)
         dist.barrier()
     def interrupted():
@@ -174,28 +210,51 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
             order=torch.randperm(len(train),generator=torch.Generator().manual_seed(config['seed']+epoch)).tolist()
             while position<len(order):
                 if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
-                ddp.train();optimizer.zero_grad(set_to_none=True);step_start=time.perf_counter()
+                model.train()
+                if ddp is not None:ddp.train()
+                optimizer.zero_grad(set_to_none=True);step_start=time.perf_counter()
                 end=min(position+world,len(order));batch_cases=end-position;active=position+rank<end
+                batch_rng=local_rng(device) if manual else None;aborted=False
+                global_elements=sum(manifest['splits']['train'][order[i]]['nodes']*6 for i in range(position,end))
                 if active:
-                    sample=train[order[position+rank]];prediction=ddp(prepare_input(model,norm,sample,device))
-                    target=norm.target(sample,device)
-                    if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
-                    squared=(prediction-target).square().sum();elements=target.numel()
+                    sample=train[order[position+rank]];elements=sample['targets'].size
+                    if manual and name in ('GCN','Graph_Transformer'):
+                        value=model.graph_executor.backward_sample(model,norm,sample,device,
+                            stop_requested=wants_stop,loss_scale=world*elements/global_elements)
+                        aborted=value is None
+                        squared=torch.tensor(0. if aborted else value*elements,device=device,dtype=torch.float64)
+                    else:
+                        prediction=(model.graph_executor.graph_unet(model,norm,sample,device) if manual
+                                    else ddp(prepare_input(model,norm,sample,device)))
+                        target=norm.target(sample,device)
+                        if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
+                        squared=(prediction-target).square().sum()
+                        del target
+                elif manual:
+                    squared=torch.zeros((),device=device);elements=0
                 else:
-                    # Zero-gradient placeholder: no extra dataset case, tiny input,
-                    # no fake BatchNorm running-stat updates and no checkpoint RNG.
+                    # Native DDP ranks still need one tiny, zero-gradient forward.
                     ddp.eval();prediction=ddp(dummy_input(model,device));ddp.train()
                     squared=prediction.sum()*0.;elements=0
+                if manual and stopped(aborted or wants_stop(),device):
+                    optimizer.zero_grad(set_to_none=True);restore_local_rng(batch_rng,device)
+                    return interrupted()
                 aggregate=torch.tensor([float(squared.detach()),elements],dtype=torch.float64,device=device)
                 bad_loss=torch.tensor(int(not torch.isfinite(squared).item()),device=device);dist.all_reduce(bad_loss,op=dist.ReduceOp.MAX)
                 if bad_loss.item():raise ValueError('Nonfinite DDP training loss')
                 dist.all_reduce(aggregate)
-                loss=squared*(world/aggregate[1]);loss.backward()
+                if not (manual and name in ('GCN','Graph_Transformer')):
+                    loss=squared*(world/aggregate[1])
+                    if active or not manual:loss.backward()
+                if manual:mean_case_gradients(model)
                 torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
                 optimizer.step();global_step+=1;updates+=1;position=end
                 pending_sum+=float(aggregate[0]);pending_count+=int(aggregate[1])
-                del prediction,squared,loss
-                if active:del target,sample
+                if not (manual and name in ('GCN','Graph_Transformer')):
+                    if active or not manual:del prediction
+                    del loss
+                del squared
+                if active:del sample
                 if rank==0 and (updates<=3 or updates%10==0):
                     print(f'{name} DDP step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
                 if updates%checkpoint_every==0:save(last_path);status('training')
@@ -230,7 +289,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 'environment':{'torch':torch.__version__,'device':str(device),'ddp_backend':dist.get_backend(),'world_size':world,
                                'gpu':torch.cuda.get_device_name(device) if device.type=='cuda' else None,
                                'slurm_nodes':os.environ.get('SLURM_NNODES'),'global_batch_cases':world,
-                               'batch_norm':'local BatchNorm; rank0 buffers broadcast'}}
+                               'batch_norm':'local BatchNorm; rank0 buffers broadcast',
+                               'gradient_sync':'case_allreduce' if manual else 'native_ddp'}}
         if rank==0:atomic_json(report,folder/'report.json')
         status('complete',best_epoch=best_saved['completed_epochs']);dist.barrier()
         return report
