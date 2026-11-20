@@ -8,7 +8,6 @@ import types
 import unittest
 from unittest.mock import patch
 
-os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import torch
 
 torch.set_num_threads(1)

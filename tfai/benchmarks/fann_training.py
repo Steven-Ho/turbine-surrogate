@@ -142,6 +142,11 @@ def build_model(name,train,norm,config,state=None,scratch=None):
             pod_state=fit_streaming_pod(train,norm,config['rank'],scratch)
     model=FannAdapter(name,train,norm,scale=config['scale'],grid=config['grid'],rank=config['rank'],
                       pod_state=pod_state,pod_geometry_bins=config['pod_geometry_bins'])
+    if name=='GeoTransolver':
+        model.net.activation_offload=os.environ.get('TURBINE_GEO_ACTIVATION_OFFLOAD','1')=='1'
+        chunk=int(os.environ.get('TURBINE_GEO_NODE_CHUNK','32768'))
+        if chunk<0:raise ValueError('TURBINE_GEO_NODE_CHUNK must be nonnegative')
+        for module in model.net.model.modules():module.node_chunk_size=chunk
     if state is not None:model.load_state_dict(state,strict=True)
     if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
         from .fann_graph_execution import BoundedGraphExecution
@@ -237,6 +242,8 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
     train=store_for(manifest,'train',config['cache_samples']);valid=store_for(manifest,'valid',config['cache_samples'])
     norm=Normalizer.from_state(saved['normalization']) if saved else Normalizer(train)
     model=build_model(name,train,norm,config,state=saved['state_dict'] if saved else None,scratch=folder/'pod_scratch').to(device)
+    from .fann_model_parallel import configure
+    configure(model,device)
     optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'])
     scheduler=build_lr_scheduler(optimizer,{'lr_scheduler':{'enabled':True,'factor':config['lr_factor'],
         'patience':config['lr_patience'],'threshold':config['lr_threshold'],'cooldown':config['lr_cooldown'],'min_lr':config['min_lr']}})
@@ -254,7 +261,10 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
             'normalization':vars(norm),'config':config,'manifest':manifest,'fields':list(FIELDS),
             'completed_epochs':epoch,'position':position,'global_step':global_step,'best_score':best,
             'early_stopping_counter':bad,'history':history,'pending_loss_sum':pending_sum,'pending_elements':pending_count,
-            'rng_state':capture_rng_state(),'training_seconds':elapsed+time.perf_counter()-started}
+            'rng_state':capture_rng_state(),'training_seconds':elapsed+time.perf_counter()-started,
+            'execution_runtime':{'pipeline_devices':[str(d) for d in getattr(model,'pipeline_devices',[device])],
+                'geo_activation_offload':getattr(model.net,'activation_offload',False),
+                'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None)}}
     old_handlers={}
     def stop(signum,frame):
         nonlocal interrupted
@@ -264,7 +274,8 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
     try:
         atomic_json({'state':'training','model':name,'pid':os.getpid(),'completed_epochs':epoch,'global_step':global_step,
                      'scope':manifest['scope']},folder/'status.json')
-        if getattr(model,'graph_executor',None) is not None and saved is None:
+        case_checkpoint=(getattr(model,'graph_executor',None) is not None or name=='GeoTransolver')
+        if case_checkpoint and saved is None:
             atomic_torch_save(checkpoint(),last_path)
         while epoch<config['epochs'] and bad<config['patience']:
             generator=torch.Generator().manual_seed(config['seed']+epoch)
@@ -293,7 +304,7 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
                 torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
                 optimizer.step();global_step+=1;updates+=1;position=offset+1
                 pending_sum+=loss_value*elements;pending_count+=elements
-                if executor is not None:atomic_torch_save(checkpoint(),last_path)
+                if case_checkpoint:atomic_torch_save(checkpoint(),last_path)
             if interrupted:
                 atomic_torch_save(checkpoint(),last_path)
                 atomic_json({'state':'interrupted','model':name,'completed_epochs':epoch,'position':position,
@@ -357,6 +368,8 @@ def evaluate_frozen(path,manifest,split,device,output):
     if checkpoint['manifest']['signature']!=manifest['signature']:raise ValueError('Dataset/split changed')
     norm=Normalizer.from_state(checkpoint['normalization'])
     model=build_model(checkpoint['model'],[],norm,checkpoint['config'],state=checkpoint['state_dict']).to(device)
+    from .fann_model_parallel import configure
+    configure(model,device)
     result=evaluate(model,norm,store_for(manifest,split),device,output=Path(output)/'predictions',near_wall=checkpoint['config']['near_wall'])
     result.update(model=checkpoint['model'],split=split,checkpoint_sha256=file_hash(path),scope=manifest['scope'])
     atomic_json(result,Path(output)/'report.json');return result

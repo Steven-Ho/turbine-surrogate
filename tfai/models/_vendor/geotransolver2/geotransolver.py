@@ -534,7 +534,9 @@ class GeoTransolver(Module):
         )
 
         # Project inputs to hidden dimension: (B, N, C) -> (B, N, n_hidden)
-        x = [self.preprocess[i](le) for i, le in enumerate(local_embedding)]
+        from .memory import chunked_apply
+        chunk=getattr(self,'node_chunk_size',0)
+        x = [chunked_apply(self.preprocess[i],le,chunk) for i, le in enumerate(local_embedding)]
 
         # Concatenate local features if enabled
         if self.include_local_features and local_embedding_bq is not None:
@@ -543,12 +545,13 @@ class GeoTransolver(Module):
                 for i in range(len(x))
             ]
 
+        del local_embedding_bq
         # Pass through GALE transformer blocks with context cross-attention
         for block in self.blocks:
             x = block(tuple(x), embedding_states)
 
         # Project to output dimensions: (B, N, n_hidden) -> (B, N, out_dim)
-        x = [self.ln_mlp_out[i](x[i]) for i in range(len(x))]
+        x = [chunked_apply(self.ln_mlp_out[i],x[i],chunk) for i in range(len(x))]
 
         # Return same format as input (single tensor or tuple)
         if single_input:

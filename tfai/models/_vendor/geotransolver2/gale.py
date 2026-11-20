@@ -227,6 +227,11 @@ class GALE(PhysicsAttentionIrregularMesh):
                         f"got {tensor.ndim}D tensor with shape {tuple(tensor.shape)}"
                     )
 
+        chunk=getattr(self,'node_chunk_size',0)
+        if chunk and not self.plus and not self.use_te:
+            from .memory import gale_attention
+            return gale_attention(self,x,context,chunk)
+
         # Project inputs onto learned latent spaces
         if self.plus:
             x_mid = [self.project_input_onto_slices(_x) for _x in x]
@@ -451,7 +456,9 @@ class GALE_block(nn.Module):
                     )
 
         # Apply pre-normalization to all inputs
-        normed_inputs = [self.ln_1(_fx) for _fx in fx]
+        from .memory import chunked_apply
+        chunk=getattr(self,'node_chunk_size',0)
+        normed_inputs = [chunked_apply(self.ln_1,_fx,chunk) for _fx in fx]
 
         # Apply GALE attention with cross-attention to global context
         attn = self.Attn(tuple(normed_inputs), global_context)
@@ -459,7 +466,9 @@ class GALE_block(nn.Module):
         # Residual connection after attention
         fx_out = [attn[i] + fx[i] for i in range(len(fx))]
 
-        # Feed-forward network with residual connection
-        fx_out = [self.ln_mlp1(_fx) + _fx for _fx in fx_out]
+        del normed_inputs,attn
+        # Fuse chunk-local residuals to avoid another full node tensor.
+        from .memory import chunked_residual
+        fx_out = [chunked_residual(self.ln_mlp1,_fx,chunk) for _fx in fx_out]
 
         return fx_out

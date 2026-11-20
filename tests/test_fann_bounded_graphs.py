@@ -89,6 +89,75 @@ class BoundedGraphTests(unittest.TestCase):
         actual=ConstantSparseMultiply.apply(values,matrix,2)
         expected=torch.as_tensor(matrix.toarray(),dtype=values.dtype)@values
         torch.testing.assert_close(actual,expected)
+    def test_geo_streamed_slices_preserve_global_outputs_and_gradients(self):
+        torch.manual_seed(7)
+        dense=FannAdapter('GeoTransolver',[self.sample],self.norm);bounded=copy.deepcopy(dense)
+        for module in bounded.net.model.modules():module.node_chunk_size=7
+        a=self.norm.graph(self.sample,'cpu',with_edges=False);b=a.clone()
+        a.x.requires_grad_();b.x.requires_grad_()
+        expected=dense(a);actual=bounded(b)
+        target=self.norm.target(self.sample,'cpu')
+        torch.testing.assert_close(actual,expected,rtol=2e-4,atol=2e-6)
+        (expected-target).square().mean().backward();(actual-target).square().mean().backward()
+        torch.testing.assert_close(a.x.grad,b.x.grad,rtol=1e-3,atol=2e-6)
+        for (key,p),(_,q) in zip(dense.named_parameters(),bounded.named_parameters()):
+            self.assertEqual(p.grad is None,q.grad is None,key)
+            if p.grad is not None:torch.testing.assert_close(p.grad,q.grad,rtol=1e-3,atol=2e-6,msg=key)
+
+    @unittest.skipUnless(torch.cuda.device_count()>=2,'Two GPUs required for layer model parallelism')
+    def test_four_models_layer_parallel_output_gradients_and_optimizer(self):
+        from tfai.benchmarks.fann_model_parallel import configure
+        for name in ['GCN','Graph_UNet','Graph_Transformer','GeoTransolver']:
+            with self.subTest(model=name):
+                torch.manual_seed(13)
+                dense=FannAdapter(name,[self.sample],self.norm).to('cuda:0')
+                parallel=copy.deepcopy(dense)
+                if name=='GeoTransolver':
+                    parallel.net.activation_offload=True
+                    for module in parallel.net.model.modules():module.node_chunk_size=7
+                if name=='Graph_UNet':parallel.graph_executor=self.executor(name)
+                configure(parallel,'cuda:0',count=2)
+                graph=self.norm.graph(self.sample,'cuda:0',with_edges=name!='GeoTransolver')
+                expected=dense(graph)
+                actual=(self.executor(name).graph_unet(parallel,self.norm,self.sample,'cuda:0')
+                        if name=='Graph_UNet' else parallel(graph))
+                torch.testing.assert_close(actual,expected,rtol=4e-4,atol=4e-6)
+                target=self.norm.target(self.sample,'cuda:0')
+                (expected-target).square().mean().backward();(actual-target).square().mean().backward()
+                for (key,p),(_,q) in zip(dense.named_parameters(),parallel.named_parameters()):
+                    self.assertEqual(p.grad is None,q.grad is None,key)
+                    if p.grad is not None:torch.testing.assert_close(p.grad.cpu(),q.grad.cpu(),rtol=1e-3,atol=5e-6,msg=key)
+                torch.nn.utils.clip_grad_norm_(parallel.parameters(),1.,error_if_nonfinite=True)
+                optimizer=torch.optim.Adam(parallel.parameters(),lr=1e-4);optimizer.step()
+                self.assertEqual({p.device.index for p in parallel.parameters()},{0,1})
+                checkpoint=copy.deepcopy(parallel.state_dict())
+                parallel.load_state_dict(checkpoint,strict=True)
+                # A second full-case step also exercises Adam state on both GPUs.
+                optimizer.zero_grad(set_to_none=True)
+                output=(self.executor(name).graph_unet(parallel,self.norm,self.sample,'cuda:0')
+                        if name=='Graph_UNet' else parallel(graph))
+                (output-target).square().mean().backward();optimizer.step()
+
+    @unittest.skipUnless(torch.cuda.is_available(),'CUDA required for host activation offload')
+    def test_geo_offload_preserves_outputs_parameter_and_input_gradients(self):
+        torch.manual_seed(7)
+        dense=FannAdapter('GeoTransolver',[self.sample],self.norm).cuda()
+        offloaded=copy.deepcopy(dense);offloaded.net.activation_offload=True
+        graph=self.norm.graph(self.sample,'cuda',with_edges=False)
+        a=graph.clone();b=graph.clone();a.x.requires_grad_();b.x.requires_grad_()
+        expected=dense(a);actual=offloaded(b)
+        target=self.norm.target(self.sample,'cuda')
+        (expected-target).square().mean().backward();(actual-target).square().mean().backward()
+        torch.testing.assert_close(actual,expected,rtol=1e-5,atol=1e-6)
+        torch.testing.assert_close(a.x.grad,b.x.grad,rtol=1e-4,atol=1e-6)
+        self.assertEqual(set(dense.state_dict()),set(offloaded.state_dict()))
+        for (key,p),(_,q) in zip(dense.named_parameters(),offloaded.named_parameters()):
+            self.assertEqual(p.grad is None,q.grad is None,key)
+            if p.grad is not None:torch.testing.assert_close(p.grad,q.grad,rtol=1e-4,atol=1e-6,msg=key)
+        offloaded.eval()
+        with torch.inference_mode():
+            torch.testing.assert_close(offloaded(graph),expected.detach(),rtol=1e-5,atol=1e-6)
+
     def test_owner_partition_can_interrupt_before_any_gradient(self):
         model=FannAdapter('GCN',[self.sample],self.norm)
         value=self.executor('GCN').backward_sample(model,self.norm,self.sample,'cpu',lambda:True)

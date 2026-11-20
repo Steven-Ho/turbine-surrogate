@@ -43,6 +43,25 @@ class FormalFannTests(unittest.TestCase):
         self.root=Path(self.tmp.name);self.split=fixture(self.root)
         torch.set_num_threads(2)
 
+    @unittest.skipUnless(torch.cuda.device_count()>=2,'Two GPUs required for formal model-parallel recovery')
+    def test_four_models_pipeline_interruption_resume_and_frozen_test(self):
+        from unittest.mock import patch
+        manifest=inspect_splits(self.split);cfg=config(1)
+        cfg.update(graph_execution='bounded',graph_owner_nodes=4,graph_edge_chunk=7,graph_cache_mb=1)
+        with patch.dict(os.environ,{'TURBINE_FANN_PIPELINE_GPUS':'2','TURBINE_GEO_NODE_CHUNK':'3',
+                                    'TURBINE_FANN_GRAPH_CACHE':str(self.root/'topology')}):
+            for name in ['GCN','Graph_UNet','Graph_Transformer','GeoTransolver']:
+                with self.subTest(model=name):
+                    folder=self.root/name
+                    result=train_one(name,manifest,cfg,folder,'cuda:0',max_updates=1)
+                    self.assertEqual(result['state'],'interrupted')
+                    saved=torch.load(folder/'last.pt',map_location='cpu',weights_only=False)
+                    self.assertEqual(saved['global_step'],1)
+                    report=train_one(name,manifest,cfg,folder,'cuda:0',resume=True)
+                    self.assertEqual(report['state'],'complete');self.assertEqual(report['optimizer_steps'],2)
+                    frozen=evaluate_frozen(folder/'best.pt',manifest,'test','cuda:0',self.root/(name+'_frozen'))
+                    np.testing.assert_allclose(frozen['rmse'],report['test']['rmse'],rtol=1e-5,atol=1e-5)
+
     def test_all_seven_train_select_restore_and_test(self):
         manifest=inspect_splits(self.split)
         for name in MODELS:

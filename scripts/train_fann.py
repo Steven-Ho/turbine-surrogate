@@ -57,8 +57,9 @@ def main():
         try:
             result=train_one(model,manifest,config,folder,a.device,a.resume,a.max_updates)
             if result['state']=='interrupted':
-                peak=(torch.cuda.max_memory_allocated(a.device)/2**30) if a.device.startswith('cuda') else None
-                print(f'{model}: stopped safely after {result["global_step"]} updates; last.pt saved; peak_allocated_GiB={peak}',flush=True)
+                peak=([torch.cuda.max_memory_allocated(i)/2**30 for i in range(torch.cuda.device_count())]
+                      if a.device.startswith('cuda') else None)
+                print(f'{model}: stopped safely after {result["global_step"]} updates; last.pt saved; per_gpu_peak_allocated_GiB={peak}',flush=True)
                 raise SystemExit(130)
         except RunLockedError as error:
             print(str(error),flush=True);errors[model]=str(error)

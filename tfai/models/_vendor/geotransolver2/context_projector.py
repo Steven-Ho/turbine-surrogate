@@ -294,6 +294,11 @@ class ContextProjector(nn.Module):
                     f"got {x.ndim}D tensor with shape {tuple(x.shape)}"
                 )
 
+        chunk=getattr(self,'node_chunk_size',0)
+        if chunk and not self.plus and not self.use_te:
+            from .memory import context_slices
+            return context_slices(self,x,chunk)
+
         # Project inputs onto learned latent spaces
         if self.plus:
             projected_x = self.project_input_onto_slices(x)
@@ -418,6 +423,20 @@ class GeometricFeatureProcessor(nn.Module):
                     f"Expected 3D key_features tensor (B, N, C), "
                     f"got {key_features.ndim}D tensor with shape {tuple(key_features.shape)}"
                 )
+
+        chunk=getattr(self,'node_chunk_size',0)
+        if chunk:
+            points=query_points[0]
+            indices,valid=self.bq_warp._indices(points,key_features[0])
+            parts=[]
+            for start in range(0,len(indices),chunk):
+                ids=indices[start:start+chunk];mask=valid[start:start+chunk]
+                neighbors=points[ids]*mask[...,None].to(points.dtype)
+                if neighbors.shape[1]<self.bq_warp.neighbors_in_radius:
+                    neighbors=torch.nn.functional.pad(neighbors,(0,0,0,self.bq_warp.neighbors_in_radius-neighbors.shape[1]))
+                from .memory import recompute
+                parts.append(recompute(lambda values:torch.tanh(self.mlp(values)),neighbors.reshape(1,len(ids),-1)))
+            return torch.cat(parts,dim=1)
 
         # Query neighbors within radius: (B, N, K, C)
         _, neighbors = self.bq_warp(query_points, key_features)

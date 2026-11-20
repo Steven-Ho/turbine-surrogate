@@ -4,6 +4,7 @@ Input: existing normalized [x,y,z,Omega,P] graph features. No target fields.
 Output: normalized pressure at all input nodes, in their original order.
 """
 import torch
+from contextlib import nullcontext
 from torch import nn
 from ._vendor.transolver3.Transolver_chunk_opt_matrix_mul import Model as OfficialTransolver3
 
@@ -66,6 +67,7 @@ class GeoTransolver(nn.Module):
             raise ValueError("GeoTransolver requires whole-case geometry/global context")
         self.input_dim=input_dim
         s=SCALES[config["model"]["scale"]]
+        self.activation_offload=False
         self.model=OfficialGeoTransolver(functional_dim=input_dim-2,out_dim=output_dim,
             geometry_dim=3,global_dim=2,n_layers=s["layers"],n_hidden=s["hidden"],
             n_head=s["heads"],slice_num=s["slices"],mlp_ratio=2,dropout=0.,use_te=False,
@@ -78,6 +80,11 @@ class GeoTransolver(nn.Module):
             conditions=x[:1,-2:].unsqueeze(0)
             if not torch.allclose(x[:,-2:],x[:1,-2:].expand(x.shape[0],-1)):
                 raise ValueError("Omega/P must be constant across nodes within a case")
-            outputs.append(self.model(x[:,:-2].unsqueeze(0),local_positions=xyz,
-                global_embedding=conditions,geometry=xyz).squeeze(0))
+            # Preserve global attention; restore saved tensors on demand in backward.
+            # Avoid pinning the entire full-domain tape in locked host RAM.
+            offload=(self.activation_offload and self.training and torch.is_grad_enabled()
+                     and x.device.type=='cuda')
+            with torch.autograd.graph.save_on_cpu(pin_memory=False) if offload else nullcontext():
+                outputs.append(self.model(x[:,:-2].unsqueeze(0),local_positions=xyz,
+                    global_embedding=conditions,geometry=xyz).squeeze(0))
         return torch.cat(outputs,dim=0)

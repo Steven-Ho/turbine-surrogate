@@ -1,0 +1,49 @@
+{
+  "scope": "Capacity verification on one real full faNN case with single-case normalization; not accuracy or X203 throughput evidence",
+  "nodes": 9806346,
+  "model": "GeoTransolver",
+  "scale": "small",
+  "node_chunk": 32768,
+  "activation_offload": true,
+  "single_gpu": {
+    "nodes": 9806346,
+    "device": "NVIDIA GeForce RTX 3090",
+    "offload": true,
+    "passed": true,
+    "loss": 1.7232064008712769,
+    "seconds": 46.68472558702342,
+    "peak_gpu_gib": 18.212666511535645,
+    "peak_host_gib": 58.652400970458984
+  },
+  "two_gpu": {
+    "nodes": 9806346,
+    "device": "NVIDIA GeForce RTX 3090",
+    "offload": true,
+    "first_loss": 1.7232064008712769,
+    "first_update_seconds": 47.40296937408857,
+    "second_loss": 1.4416477680206299,
+    "second_update_seconds": 29.26242729695514,
+    "passed": true,
+    "optimizer_steps": 2,
+    "evaluation_passed": true,
+    "seconds": 85.98272871994413,
+    "per_gpu_peak_gib": [
+      18.213358879089355,
+      14.047975063323975
+    ],
+    "peak_gpu_gib": 18.213358879089355,
+    "peak_host_gib": 59.22234344482422
+  },
+  "regression": {
+    "tests": 45,
+    "result": "passed",
+    "command": "CUDA_VISIBLE_DEVICES=0,2 .venv/bin/python -m unittest tests.test_fann_adapters tests.test_fann_formal tests.test_fann_bounded_graphs tests.test_geotransolver_port tests.test_geo_spatial_cache tests.test_transolver_adapters",
+    "coverage": "Four-model two-GPU forward/gradient/Adam parity; interrupted formal training, resume and frozen evaluation; streamed global slices and CPU offload; existing faNN and neighbor tests"
+  },
+  "limitations": [
+    "No X203 validation locally",
+    "Layer stages execute sequentially; no throughput scaling claim",
+    "Graph model two-GPU parity/recovery tested on small fixtures; prior real full-case single-GPU capacities remain separate evidence",
+    "Chunked slice accumulation changes floating-point summation order"
+  ]
+}

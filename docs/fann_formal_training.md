@@ -67,9 +67,9 @@ bash scripts/submit_fann_formal.sh
 
 - POD：采用磁盘 memmap 和快照 Gram 矩阵拟合训练集基底，不把所有快照堆进 RAM；默认32模态。整域约295个训练上限样本需要约77GB的快照/基底临时空间（实际按训练集大小计算），额外留20%余量。基底通过公共节点ID对应回所有节点。几何输入先按公共节点顺序池化为256个区间的坐标/壁面距离描述符，避免把约4000万维几何直接输入全连接层；该表示是独立 POD 基线，需评估表达能力。推理和续训直接重载保存基底，不重新拟合。
 - UNet：完整节点几何映射到规则体素网格，三线性解码回全部原始节点并计算损失；网格分辨率默认32，可通过 FANN_GRID 设置64/128等。默认分辨率仅为可运行基线，不保证解析近壁细节；该映射不是保守重网格化。原始节点输出是全域，但内部表示有分辨率瓶颈。
-- 三种图网络：使用完整真实六面体边，不随机删点后沿用旧连接。默认 bounded：GCN/Graph_Transformer 使用有限感受野 owner+halo 分区、完整算例累计梯度；Graph_UNet 保留全局TopK，CPU邻接扩展及分批稀疏乘法。均不是跨GPU域并行；dense仅供小图对照。
+- 三种图网络：使用完整真实六面体边，不随机删点后沿用旧连接。默认 bounded：GCN/Graph_Transformer 使用有限感受野 owner+halo 分区、完整算例累计梯度；Graph_UNet 保留全局TopK，CPU邻接扩展及分批稀疏乘法。可使用节点内按层模型并行进一步分摊参数及激活；不是跨节点域并行。dense仅供小图对照。
 - Transolver-3：整域按8192节点分块，所有块贡献共同物理切片，保持全域耦合；训练使用官方梯度检查点，但并不自动跨GPU。
-- GeoTransolver：采用已移植的 portable_torch / KDTree 查询路径，以实际xyz/壁面距离为局部输入、几何点集和全局工况为上下文。当前整域仍在单卡执行；与NVIDIA Warp版本的整域性能不能直接等同。GPU缓存默认目录由 TURBINE_GEO_CACHE_DIR 控制，千万节点邻域缓存可能很大，应计入磁盘规划。
+- GeoTransolver：采用已移植的 portable_torch / KDTree 查询路径，以实际xyz/壁面距离为局部输入、几何点集和全局工况为上下文。整域采用节点分块的全局切片聚合、块级梯度重计算和 CPU 激活卸载，可配置节点内按层多卡执行；与NVIDIA Warp版本的整域性能不能直接等同。邻域缓存默认目录由 TURBINE_GEO_CACHE_DIR 控制，千万节点邻域缓存可能很大，应计入磁盘规划。
 
 ## 整域单步容量检查
 
@@ -208,3 +208,59 @@ python scripts/compare_fann.py --root "$FANN_RUN_ROOT" \
 ```
 
 仅在新根目录不存在某模型目录时才引用旧结果；新任务failed/interrupted不会被旧成功结果掩盖。比较会检查数据签名、域范围及best.pt哈希，记录每个模型实际结果目录。Slurm汇总也可通过FANN_REFERENCE_ROOT传入旧根目录。
+
+
+## GeoTransolver 显存修复与节点内多卡
+
+GeoTransolver 的邻居查询优化只处理了空间搜索，并不能避免多层整域激活占满显存。
+faNN 正式训练现在默认 `TURBINE_GEO_NODE_CHUNK=32768`、`TURBINE_GEO_ACTIVATION_OFFLOAD=1`：
+逐块累积全体节点的切片分子/分母（仅加一次归一化常数），所有块使用同一组全局状态；
+局部几何处理、节点 MLP 也分块，并在反向时重算块内激活。保存的激活放在普通 CPU 主存中，避免锁页内存耗尽。
+没有裁剪计算域，也没有缩小 hidden/layers/slices 或改变六通道损失。
+分块改变浮点加法顺序，因此与旧实现可能有微小舍入差异，不能承诺逐位相同。
+设置 `TURBINE_GEO_NODE_CHUNK=0` 可恢复原始未分块路径，仅用于小样例对照。
+卸载可通过 `TURBINE_GEO_ACTIVATION_OFFLOAD=0` 禁用，显存占用会增加。
+这些选项只在 faNN 路径默认启用，Rotor37 的既有默认行为保持。
+
+新增 `TURBINE_FANN_PIPELINE_GPUS`（默认1），支持 GCN、Graph_UNet、Graph_Transformer、GeoTransolver。
+同一进程将网络层放到不同 GPU，自动迁移中间张量，梯度跨设备返回，仍为完整算例一次 Adam 更新。
+它分摊单算例的参数和激活显存，**不是 DDP、跨节点域并行或并发微批流水线**，不保证卡数翻倍就加速。
+GCN/Graph_Transformer 仍结合 owner+halo；Graph_UNet 仍保留全局 TopK，CPU 邻接扩展的主存和耗时不会因多卡自动下降。
+不要同时使用 torchrun 或启动每 GPU 一个进程。
+
+集群先只重试编号6，使用两卡、128G CPU 主存：
+
+```bash
+git pull --ff-only origin master
+# FANN_SPLITS 沿用已经准备的整域 splits.json
+export FANN_DOMAIN=full
+export FANN_RUN_ROOT="$PWD/runs/fann_multigpu_capacity_v1"
+export TURBINE_FANN_PIPELINE_GPUS=2
+export FANN_MAX_UPDATES=1
+unset FANN_RESUME FANN_STEPS
+sbatch --array=6 scripts/slurm_fann_multigpu_array.sh
+```
+
+需要同时验证四个模型时用 `--array=2,3,4,6`；每个数组元素分别申请两卡，不是四个任务共享两卡。
+需要四卡时同时修改申请和进程可见卡数：
+
+```bash
+export TURBINE_FANN_PIPELINE_GPUS=4
+sbatch --array=6 --gres=gpu:4 scripts/slurm_fann_multigpu_array.sh
+```
+
+`--max-updates 1` 执行一个完整算例更新，保存 last.pt，以130主动退出。
+通过后使用相同运行根目录和数据，`unset FANN_MAX_UPDATES; export FANN_RESUME=1 FANN_EPOCHS=400`，再提交相同脚本。
+检查点记录实际设备、激活卸载和块大小。单卡/多卡参数结构相同，可读取原权重与优化器状态；
+改变设备布局或切片聚合方式的续训不能承诺逐位复现原轨迹。owner 节点数等既有不可变配置仍需匹配。
+若旧作业从未完成一个保存点，没有 last.pt，则使用新的运行目录重新开始。
+
+本机真实约980万节点单样例（单样例归一化，仅容量验证）已经通过 GeoTransolver 单次前向、反向和 Adam 更新：
+RTX3090 峰值 GPU 分配约18.21 GiB、CPU 进程峰值约58.65 GiB。
+不是 X203 吞吐或最终预测精度证据；集群仍应先做容量检查。
+
+双卡真实整域验证进一步通过连续两次 Adam 更新和一次完整推理：每卡 GPU 峰值约18.21/14.05 GiB，
+CPU 进程峰值约59.22 GiB。第二次热缓存算例更新约29.26秒；这些数值不能直接外推 X203 吞吐或400轮耗时。
+四模型双卡小样例输出/梯度/优化器对照及正式中断续训、冻结测试均通过；相关回归45项通过。
+详情见 `verification/fann_geo_memory_multigpu.json`。其他三种图模型的双卡验证使用小样例，
+不要把它描述成三个模型都已经完成真实整域双卡长期训练。

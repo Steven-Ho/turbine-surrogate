@@ -189,6 +189,7 @@ class BoundedGraphExecution:
         normalized=self.base_normalized
         x=norm.graph(sample,device,with_edges=False).x
         def convolution(layer,features,matrix):
+            features=features.to(next(layer.parameters()).device)
             result=ConstantSparseMultiply.apply(layer.lin(features),matrix,self.edge_chunk)
             return result+layer.bias if layer.bias is not None else result
         x=network.act(convolution(network.down_convs[0],x,normalized))
@@ -203,7 +204,8 @@ class BoundedGraphExecution:
                 print(f'Graph_UNet: expanded_edges={expanded.nnz} CSR_GiB={(expanded.data.nbytes+expanded.indices.nbytes+expanded.indptr.nbytes)/2**30:.2f}',flush=True)
                 if i==1:self.base_augmented=expanded
             pool=network.pools[i-1]
-            selection=pool.select(x,torch.zeros(len(x),device=device,dtype=torch.long))
+            x=x.to(next(pool.parameters()).device)
+            selection=pool.select(x,torch.zeros(len(x),device=x.device,dtype=torch.long))
             perm=selection.node_index;score=selection.weight
             x=x[perm]*score[:,None]
             if pool.multiplier!=1:x=x*pool.multiplier
@@ -216,8 +218,8 @@ class BoundedGraphExecution:
             perms.append(perm)
         del adjacency,normalized
         for i in range(network.depth):
-            j=network.depth-1-i;residual=xs[j];up=torch.zeros_like(residual);up[perms[j]]=x
+            j=network.depth-1-i;residual=xs[j];up=torch.zeros_like(residual);up[perms[j].to(residual.device)]=x.to(residual.device)
             x=residual+up if network.sum_res else torch.cat([residual,up],dim=-1)
             x=convolution(network.up_convs[i],x,norms[j])
             if i<network.depth-1:x=network.act(x)
-        return x
+        return x.to(device)

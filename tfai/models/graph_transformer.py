@@ -98,6 +98,8 @@ class GraphTransformer(nn.Module):
         x = self.input_proj(x)
 
         for conv, norm in zip(self.convs, self.norms):
+            stage_device=next(conv.parameters()).device
+            x=x.to(stage_device);edge_index=edge_index.to(stage_device);edge_attr=edge_attr.to(stage_device)
             residual = x
             # Stores the `x` for use by the remaining steps in this flow.
             x = conv(x, edge_index, edge_attr=edge_attr)
