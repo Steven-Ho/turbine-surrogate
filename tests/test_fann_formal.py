@@ -245,7 +245,7 @@ class FormalFannTests(unittest.TestCase):
         fake=self.root/'sbatch';log=self.root/'calls'
         fake.write_text('#!/bin/bash\necho "$*" >> "$CALL_LOG"\necho 12345\n');fake.chmod(0o755)
         env=dict(os.environ,PATH=str(self.root)+os.pathsep+os.environ['PATH'],CALL_LOG=str(log),FANN_RUN_ROOT=str(self.root/'submitted'))
-        env.pop('FANN_SPLITS',None);env.pop('FANN_STEPS',None)
+        env['FANN_SPLITS']='';env.pop('FANN_STEPS',None) # Explicit request to prepare new data.
         subprocess.run(['bash','scripts/submit_fann_formal.sh'],cwd=ROOT,env=env,check=True,capture_output=True,text=True)
         calls=log.read_text().splitlines();self.assertEqual(len(calls),4)
         self.assertIn('afterok:12345',calls[1]);self.assertIn('afterok:12345',calls[2]);self.assertIn('afterany:12345',calls[3])

@@ -561,3 +561,14 @@ GeoTransolver的查询后端/reference策略也需相同。配置不一致会明
 当前55项相关检查通过；新增验证记录见 `verification/fann_graph_ddp.json`。节点已确认约1007.6GiB主存，因此重主存入口更新为每节点8进程、768G主存；实际空闲及排队情况仍取决于AllocMem等当前分配。
 
 768G申请约占已确认节点配置主存的76.2%，保留约239.6GiB给未分配资源；作业内部余量需以单步峰值确认。8个Graph_UNet进程的本机峰值合计约283GiB，8个GeoTransolver进程约472GiB。已经提交的作业不会因代码更新自动改变资源申请。
+
+
+## 固定使用当前数据划分
+
+用户确认的默认划分为 `runs/fann_prepared_20261119_202344/splits.json`。
+`scripts/fann_defaults.sh` 为正式提交入口、单卡/按层多卡、DDP及CPU登记脚本提供统一默认值，
+路径相对于项目根目录展开。未设置 FANN_SPLITS 时自动沿用该文件；显式设置其他路径仍可覆盖。
+后续命令无需重复 export，数据登记缓存也继续复用同一划分。
+`submit_fann_formal.sh` 若要重新准备新数据，需显式传入空值，
+例如 `FANN_SPLITS='' bash scripts/submit_fann_formal.sh`；仅unset会恢复上述固定默认值。
+已有运行进程继续使用提交时的环境，更新后的默认值对新提交生效。

@@ -14,6 +14,7 @@ module purge
 module load conda-py31010/3.10.10
 source "${TURBINE_VENV:-$HOME/venvs/turbine-metax}/bin/activate"
 cd "${SLURM_SUBMIT_DIR:?}"
+source scripts/fann_defaults.sh
 source "${TURBINE_OPENGL_RUNTIME:-$PWD/turbine-opengl-jammy}/load.sh"
 export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}" PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS="${FANN_THREADS:-4}"
