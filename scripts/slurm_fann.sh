@@ -5,8 +5,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
-#SBATCH --output=fann_%j.out
-#SBATCH --error=fann_%j.err
+#SBATCH --output=logs/fann_%j.out
+#SBATCH --error=logs/fann_%j.err
 set -eo pipefail
 module purge
 module load conda-py31010/3.10.10

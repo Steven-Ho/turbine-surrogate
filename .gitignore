@@ -3,7 +3,8 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .hydra/
-logs/
+logs/*
+!logs/.gitkeep
 outputs/
 data/rotor37/
 turbine-opengl-jammy/

@@ -7,7 +7,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --signal=TERM@120
-#SBATCH --output=fann_%A_%a.out
+#SBATCH --output=logs/fann_%A_%a.out
+#SBATCH --error=logs/fann_%A_%a.err
 set -eo pipefail
 module purge
 module load conda-py31010/3.10.10

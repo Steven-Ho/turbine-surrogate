@@ -5,8 +5,8 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=768G
 #SBATCH --get-user-env
-#SBATCH --output=vtk_library_check_%j.out
-#SBATCH --error=vtk_library_check_%j.err
+#SBATCH --output=logs/vtk_library_check_%j.out
+#SBATCH --error=logs/vtk_library_check_%j.err
 
 set -eo pipefail
 module purge

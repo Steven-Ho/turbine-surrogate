@@ -7,7 +7,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=128G
 #SBATCH --signal=TERM@120
-#SBATCH --output=fann_%A_%a.out
+#SBATCH --output=logs/fann_%A_%a.out
+#SBATCH --error=logs/fann_%A_%a.err
 # One process owns multiple GPUs. Do not launch torchrun or one task per GPU.
 set -eo pipefail
 cd "${SLURM_SUBMIT_DIR:?}"

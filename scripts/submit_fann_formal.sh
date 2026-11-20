@@ -1,6 +1,8 @@
 #!/bin/bash
 # Submit preparation (if needed), seven model jobs, and an after-any collector.
 set -euo pipefail
+# Slurm opens output/error before the job script starts.
+mkdir -p logs
 stamp=$(date +%Y%m%d_%H%M%S)
 export FANN_RUN_ROOT="${FANN_RUN_ROOT:-$PWD/runs/fann_formal_$stamp}"
 export FANN_DOMAIN="${FANN_DOMAIN:-full}"

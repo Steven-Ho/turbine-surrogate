@@ -7,8 +7,8 @@
 #SBATCH --mem=16G
 #SBATCH --time=00:15:00
 #SBATCH --get-user-env
-#SBATCH --output=gpu_probe_%j.out
-#SBATCH --error=gpu_probe_%j.err
+#SBATCH --output=logs/gpu_probe_%j.out
+#SBATCH --error=logs/gpu_probe_%j.err
 
 # Submit from the project root. Extra arguments are passed to probe_gpu.py.
 set -eo pipefail

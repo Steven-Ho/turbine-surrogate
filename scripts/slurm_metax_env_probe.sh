@@ -5,8 +5,8 @@
 #SBATCH --gres=gpu:2
 #SBATCH --mem=768G
 #SBATCH --get-user-env
-#SBATCH --output=test_gpu_%j.out
-#SBATCH --error=test_gpu_%j.err
+#SBATCH --output=logs/test_gpu_%j.out
+#SBATCH --error=logs/test_gpu_%j.err
 
 set -eo pipefail
 

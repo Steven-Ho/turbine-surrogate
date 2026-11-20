@@ -264,3 +264,18 @@ CPU 进程峰值约59.22 GiB。第二次热缓存算例更新约29.26秒；这�
 四模型双卡小样例输出/梯度/优化器对照及正式中断续训、冻结测试均通过；相关回归45项通过。
 详情见 `verification/fann_geo_memory_multigpu.json`。其他三种图模型的双卡验证使用小样例，
 不要把它描述成三个模型都已经完成真实整域双卡长期训练。
+
+
+## Slurm 日志位置
+
+所有作业脚本的标准输出和错误均写入项目 `logs/` 目录：
+训练为 `logs/fann_ARRAYID_TASKID.out` / `.err`，准备和汇总使用各自作业号。
+`logs/.gitkeep` 保证拉取代码后目录存在，提交入口也会在 sbatch 前创建目录。
+在集群迁移旧的项目根目录日志可执行：
+
+```bash
+mkdir -p logs
+find . -maxdepth 1 -type f \( -name '*.out' -o -name '*.err' \) -exec mv -n -t logs -- {} +
+```
+
+已提交或正在运行的作业不会因 git pull 自动修改原定日志路径；以上命令可移动现有日志。
