@@ -85,7 +85,7 @@ class GraphDDPTests(unittest.TestCase):
                 self.run_job(name,root,['--resume','--max-updates','1'])
                 saved=torch.load(root/name/'last.pt',map_location='cpu',weights_only=False)
                 self.assertEqual(saved['global_step'],2);self.assertEqual(saved['position'],3)
-    def test_heavy_slurm_keeps_fewer_ranks_and_preserves_owner_setting(self):
+    def test_heavy_slurm_uses_confirmed_full_node_and_preserves_owner_setting(self):
         bindir=self.root/'bin';bindir.mkdir();calls=self.root/'calls'
         for name,body in [('module','exit 0'),('scontrol','echo localhost'),('srun','printf "%s\\n" "$*" > "$CALL_LOG"; exit 0')]:
             command=bindir/name;command.write_text('#!/bin/bash\n'+body+'\n');command.chmod(0o755)
@@ -94,12 +94,12 @@ class GraphDDPTests(unittest.TestCase):
         env=dict(self.env,PATH=str(bindir)+os.pathsep+os.environ['PATH'],TURBINE_VENV=str(venv.parent),
                  TURBINE_OPENGL_RUNTIME=str(runtime),SLURM_SUBMIT_DIR=str(ROOT),SLURM_ARRAY_TASK_ID='6',
                  SLURM_JOB_ID='181920',SLURM_ARRAY_JOB_ID='181920',SLURM_JOB_NODELIST='localhost',SLURM_NNODES='2',
-                 FANN_SPLITS=str(self.split),FANN_RUN_ROOT=str(self.root/'slurm'),FANN_DDP_GPUS_PER_NODE='8',
+                 FANN_SPLITS=str(self.split),FANN_RUN_ROOT=str(self.root/'slurm'),FANN_DDP_GPUS_PER_NODE='2',
                  FANN_GRAPH_OWNER_NODES='8192',CALL_LOG=str(calls))
         env.pop('FANN_HEAVY_GPUS_PER_NODE',None);env.pop('FANN_STEPS',None)
         result=subprocess.run(['bash','scripts/slurm_fann_ddp_heavy.sh'],cwd=ROOT,env=env,capture_output=True,text=True,timeout=20)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertIn('model=GeoTransolver',result.stdout);self.assertIn('GPUs/node=1',result.stdout)
+        self.assertIn('model=GeoTransolver',result.stdout);self.assertIn('GPUs/node=8',result.stdout)
         self.assertIn('--graph-owner-nodes 8192',calls.read_text())
         self.assertIn('--checkpoint-every 1',calls.read_text())
 

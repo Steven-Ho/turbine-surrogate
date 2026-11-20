@@ -31,7 +31,7 @@
       "All four old optimized single/model-parallel checkpoints import",
       "Owner+halo cancellation discards partial global batch and restores RNG",
       "All four frozen DDP metrics agree with single-process evaluation",
-      "Heavy launcher ignores stale 8-GPU environment default"
+      "Heavy launcher ignores stale generic 2-GPU setting and uses confirmed 8-rank default"
     ]
   },
   "small_gpu_two_agents": {
@@ -148,14 +148,18 @@
       6
     ],
     "heavy_nodes": 2,
-    "heavy_gpus_per_node": 1,
-    "heavy_host_memory_per_node": "128G"
+    "heavy_gpus_per_node": 8,
+    "heavy_host_memory_per_node": "768G",
+    "heavy_cpus_per_node": 32,
+    "confirmed_node_RealMemory_MB": 1031774,
+    "confirmed_node_memory_GiB": 1007.591796875
   },
   "limitations": [
     "No physical X203 multi-node run was possible locally",
     "All four distinct-case DDP integration tests use small fixtures",
     "Real full-case capacity test replicated the same geometry on two GPUs; it is not a multi-geometry accuracy benchmark",
-    "Heavy-model rank count requires node CPU RAM sizing; memory was moved to CPU, not eliminated",
+    "Node RAM is now known (~1007.6GiB); 8-rank 768G configuration still needs X203 single-update capacity verification",
     "One rank still needs a complete-case optimized execution path; this is not intra-case cross-node partitioning"
-  ]
+  ],
+  "resource_configuration_note": "Updated after user reported RealMemory=1031774; launcher test rerun for 8-rank default; no new X203 capacity measurement."
 }

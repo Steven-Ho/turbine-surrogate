@@ -397,7 +397,7 @@ UNet、GCN、Graph_UNet、Graph_Transformer、Transolver-3 和 GeoTransolver 均
 `TURBINE_FANN_PIPELINE_GPUS=1`，不把这两种并行方式混用。
 
 轻量入口默认每个数组元素申请 **2节点×每节点8卡**，默认数组为1、2、4、5。
-CPU卸载较重的3、6使用后文独立脚本，默认每节点1个进程。
+CPU卸载较重的3、6使用后文独立脚本，默认每节点8个进程并申请768G主存（节点主存已确认约1TiB）。
 两个模型各自申请这份资源，不是共享同一份16卡分配。
 一个节点启动一个 torchrun agent，每个agent再启动本节点各GPU的worker。
 所有节点必须能读取同一项目、准备数据、启动缓存及结果目录，并使用同一厂商PyTorch环境。
@@ -525,14 +525,15 @@ unset FANN_RESUME FANN_STEPS
 export FANN_DDP_GPUS_PER_NODE=2
 sbatch --array=2,4 --nodes=2 --gres=gpu:2 --cpus-per-task=8 scripts/slurm_fann_ddp.sh
 
-# Graph_UNet、GeoTransolver：先两节点、每节点一张卡，每节点128G主存
+# Graph_UNet、GeoTransolver：两节点、每节点八卡，每节点768G主存
 sbatch --array=3,6 scripts/slurm_fann_ddp_heavy.sh
 ```
 
-重主存入口会用 `FANN_HEAVY_GPUS_PER_NODE`（默认1）覆盖进程数，不受之前残留的
-`FANN_DDP_GPUS_PER_NODE=8` 影响。提高进程数时必须同时提高GPU申请、CPU数及主存预算。
-例如确认节点主存足够后，可以设置 FANN_HEAVY_GPUS_PER_NODE=2 并以
-`--gres=gpu:2 --cpus-per-task=8 --mem=192G` 提交；这只是首次容量检查预算，不是所有几何的最低或保证值。
+重主存入口会用 `FANN_HEAVY_GPUS_PER_NODE`（默认8）覆盖进程数，不受之前残留的
+`FANN_DDP_GPUS_PER_NODE=2` 影响。节点已确认 RealMemory=1031774，约1007.6GiB。重主存入口现默认8进程、8卡、32CPU和768G主存。
+这是根据本机峰值估计的首次容量检查预算，不是所有几何的保证值。若要缩小检查规模，
+设置 FANN_HEAVY_GPUS_PER_NODE=2 并以 `--gres=gpu:2 --cpus-per-task=8 --mem=192G` 提交，
+进程数和GPU申请必须同时匹配。
 
 本机约980万节点测试的单进程主存峰值：Graph_UNet约35.4GiB、GeoTransolver约59GiB。
 因此不能把8个GeoTransolver进程直接放入128G主存申请：仅进程峰值合计就约472GiB，
@@ -557,4 +558,6 @@ GeoTransolver的查询后端/reference策略也需相同。配置不一致会明
 完成了前反向和一次Adam更新，每卡峰值约18.21GiB、每进程主存约58.93GiB；
 这是容量证据，不是两个不同几何的正式DDP训练或X203跨节点吞吐证据。
 
-当前55项相关检查通过；新增验证记录见 `verification/fann_graph_ddp.json`。尚未取得节点实际主存配置，因此重主存入口采用每节点1进程的保守默认值。
+当前55项相关检查通过；新增验证记录见 `verification/fann_graph_ddp.json`。节点已确认约1007.6GiB主存，因此重主存入口更新为每节点8进程、768G主存；实际空闲及排队情况仍取决于AllocMem等当前分配。
+
+768G申请约占已确认节点配置主存的76.2%，保留约239.6GiB给未分配资源；作业内部余量需以单步峰值确认。8个Graph_UNet进程的本机峰值合计约283GiB，8个GeoTransolver进程约472GiB。已经提交的作业不会因代码更新自动改变资源申请。
