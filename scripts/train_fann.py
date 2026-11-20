@@ -47,7 +47,9 @@ def main():
     if a.graph_owner_nodes<1 or a.graph_edge_chunk<1 or a.graph_cache_mb<0:p.error('Invalid graph chunk/cache size')
     torch.set_num_threads(a.threads)
     if a.device.startswith('cuda') and not torch.cuda.is_available():raise RuntimeError('GPU unavailable; no silent CPU fallback')
-    manifest=inspect_splits(a.splits,a.allow_legacy_inputs)
+    print(f'faNN startup: models={a.models} splits={a.splits} device={a.device}',flush=True)
+    manifest=inspect_splits(a.splits,a.allow_legacy_inputs,progress=lambda message:print(message,flush=True))
+    print('faNN split inspection complete; entering model initialization',flush=True)
     if a.domain!='legacy' and manifest['domain']!=a.domain:
         p.error('Requested domain differs from prepared data: '+manifest['domain'])
     config={key:value for key,value in vars(a).items() if key not in ['splits','models','output','resume','device','max_updates','allow_legacy_inputs','domain']}

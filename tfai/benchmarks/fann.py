@@ -64,13 +64,15 @@ def load_sample(path):
 
 
 class Normalizer:
-    def __init__(self, train):
+    def __init__(self, train, progress=None):
         # Training snapshots only. Fixed physical scales prevent zero-variance
         # single-snapshot channels from causing huge normalized values.
         lo = np.full(3, np.inf); hi = np.full(3, -np.inf)
         count = 0; mean = np.zeros(6); m2 = np.zeros(6)
         self.wall_distance = 'wall_distance' in train[0]
-        for sample in train:
+        for sample_index,sample in enumerate(train):
+            if progress is not None and sample_index%10==0:
+                progress(f'normalization sample {sample_index+1}/{len(train)}')
             if ('wall_distance' in sample) != self.wall_distance:
                 raise ValueError('Wall-distance schema must match across training samples')
             xyz = sample['coordinates']; lo = np.minimum(lo,xyz.min(0)); hi = np.maximum(hi,xyz.max(0))

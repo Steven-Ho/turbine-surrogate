@@ -61,16 +61,19 @@ class SampleStore:
         return self.cache[index]
 
 
-def inspect_splits(split_path, allow_legacy=False):
+def inspect_splits(split_path, allow_legacy=False, progress=None):
     split_path=Path(split_path).resolve();raw=json.loads(split_path.read_text())
     records={};geometries={};seen={};protocol=None;wall=None;fixed=None
     for split in ['train','valid','test']:
         paths=raw.get(split,[])
         if not paths:raise ValueError('Need nonempty '+split+' split')
         records[split]=[];geometries[split]=set()
-        for value in paths:
+        if progress is not None:progress(f'faNN inspecting {split}: {len(paths)} samples')
+        for sample_index,value in enumerate(paths):
             path=Path(value)
             if not path.is_absolute():path=split_path.parent/path
+            if progress is not None and sample_index%10==0:
+                progress(f'faNN inspecting {split} {sample_index+1}/{len(paths)}: {path}')
             sample=load_sample(path)
             if 'geometry_id' not in sample:raise ValueError('Missing geometry_id')
             geometry=int(sample['geometry_id'].reshape(-1)[0]);geometries[split].add(geometry)
@@ -248,10 +251,13 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
         if saved['completed_epochs']>0 and not best_path.exists():raise ValueError('Missing validation-best checkpoint')
     set_global_seed(config['seed'])
     train=store_for(manifest,'train',config['cache_samples']);valid=store_for(manifest,'valid',config['cache_samples'])
-    norm=Normalizer.from_state(saved['normalization']) if saved else Normalizer(train)
+    print(f'{name}: '+('restoring normalization' if saved else f'fitting normalization over {len(train)} training samples'),flush=True)
+    norm=Normalizer.from_state(saved['normalization']) if saved else Normalizer(train,progress=lambda message:print(name+': '+message,flush=True))
+    print(f'{name}: normalization ready; building model',flush=True)
     model=build_model(name,train,norm,config,state=saved['state_dict'] if saved else None,scratch=folder/'pod_scratch').to(device)
     from .fann_model_parallel import configure
     configure(model,device)
+    print(f'{name}: model ready; entering training loop',flush=True)
     optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'])
     scheduler=build_lr_scheduler(optimizer,{'lr_scheduler':{'enabled':True,'factor':config['lr_factor'],
         'patience':config['lr_patience'],'threshold':config['lr_threshold'],'cooldown':config['lr_cooldown'],'min_lr':config['min_lr']}})

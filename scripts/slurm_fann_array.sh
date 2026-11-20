@@ -10,6 +10,7 @@
 #SBATCH --output=logs/fann_%A_%a.out
 #SBATCH --error=logs/fann_%A_%a.err
 set -eo pipefail
+printf 'faNN job=%s task=%s host=%s started=%s\n' "${SLURM_JOB_ID:-unknown}" "${SLURM_ARRAY_TASK_ID:-unknown}" "$(hostname)" "$(date -Is)"
 module purge
 module load conda-py31010/3.10.10
 source "${TURBINE_VENV:-$HOME/venvs/turbine-metax}/bin/activate"
@@ -35,4 +36,5 @@ fi
 resume_args=()
 if [[ "${FANN_RESUME:-0}" == 1 ]]; then resume_args+=(--resume); fi
 if [[ -n "${FANN_MAX_UPDATES:-}" ]]; then resume_args+=(--max-updates "$FANN_MAX_UPDATES"); fi
+printf 'faNN launching: splits=%s run_root=%s pipeline_gpus=%s\n' "$FANN_SPLITS" "${FANN_RUN_ROOT:-runs/fann_formal_${SLURM_ARRAY_JOB_ID}}" "$TURBINE_FANN_PIPELINE_GPUS"
 exec srun --ntasks=1 python scripts/run_fann_split.py --splits "$FANN_SPLITS" --index "$SLURM_ARRAY_TASK_ID" --epochs "${FANN_EPOCHS:-400}" --domain "${FANN_DOMAIN:-full}" --graph-execution "${FANN_GRAPH_EXECUTION:-bounded}" --graph-owner-nodes "${FANN_GRAPH_OWNER_NODES:-32768}" --graph-edge-chunk "${FANN_GRAPH_EDGE_CHUNK:-262144}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" --output "${FANN_RUN_ROOT:-runs/fann_formal_${SLURM_ARRAY_JOB_ID}}" "${resume_args[@]}"
