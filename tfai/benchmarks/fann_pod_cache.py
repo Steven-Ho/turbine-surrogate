@@ -1,4 +1,6 @@
 """Immutable, train-only POD basis artifacts shared by new experiment runs."""
+from tfai.benchmarks.fann_logging import print
+
 import fcntl
 import hashlib
 import json

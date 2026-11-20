@@ -3,6 +3,8 @@
 One case is moved to the accelerator at a time. Full-domain does not imply
 multi-GPU domain parallelism: unsupported memory requirements fail explicitly.
 """
+from tfai.benchmarks.fann_logging import print, log_every, should_log
+
 import collections
 import hashlib
 import json
@@ -302,6 +304,7 @@ def execution_config(name,config):
 
 
 def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
+    interval=log_every()
     config=execution_config(name,config)
     last_path=folder/'last.pt';best_path=folder/'best.pt'
     if not resume and (last_path.exists() or best_path.exists()):raise ValueError('Existing run; use --resume or a new output directory')
@@ -379,6 +382,7 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
                     if profile:
                         profile_sync();now=time.perf_counter()
                         phase_times[phase]=now-phase_started;phase_started=now
+                batch_started=time.perf_counter()
                 sample=train[order[offset]];optimizer.zero_grad(set_to_none=True)
                 mark('load_sample')
                 executor=getattr(model,'graph_executor',None)
@@ -410,6 +414,9 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
                 mark('clip_optimizer')
                 pending_sum+=loss_value*elements;pending_count+=elements
                 if case_checkpoint:atomic_torch_save(checkpoint(),last_path)
+                if should_log(position,len(order),interval):
+                    memory=(sum(torch.cuda.memory_allocated(d) for d in getattr(model,'pipeline_devices',[device]))/2**30 if str(device).startswith('cuda') else 0.)
+                    print(f'{name} epoch={epoch+1}/{config["epochs"]} batch={position}/{len(order)} step={global_step} loss={loss_value:.7g} train={pending_sum/pending_count:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} batch_seconds={time.perf_counter()-batch_started:.3f} allocated_GiB={memory:.3f}')
                 if profile:
                     mark('checkpoint')
                     print(f'{name} step_profile step={global_step} nodes={len(sample["coordinates"])} seconds='+json.dumps(phase_times),flush=True)

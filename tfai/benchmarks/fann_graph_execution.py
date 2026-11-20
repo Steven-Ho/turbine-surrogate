@@ -6,6 +6,8 @@ chunked constant sparse-linear forward/adjoint. State-dict keys are unchanged.
 Floating summation order can differ from the dense PyG implementation.
 """
 from collections import OrderedDict
+from tfai.benchmarks.fann_logging import print
+
 import fcntl
 import hashlib
 import os

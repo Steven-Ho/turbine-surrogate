@@ -4,6 +4,8 @@ Global batch = up to world_size distinct cases; no repeated or dropped samples.
 Validation/test sufficient statistics are reduced, never rank RMSE averages.
 UNet uses ordinary local BatchNorm with DDP rank-zero buffer broadcasts.
 """
+from tfai.benchmarks.fann_logging import print, log_every, should_log
+
 import copy
 import fcntl
 import json
@@ -173,6 +175,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
             if rank==0:print(f'{name}: importing checkpoint with changed global batch; exact trajectory is not preserved',flush=True)
     train=store_for(manifest,'train',config['cache_samples'])
     if position<0 or position>len(train):raise ValueError('Invalid checkpoint sample position')
+    interval=log_every()
     stop_local=False;updates=0;started=time.perf_counter();handlers={};finalizing=False
     def request_stop(_signal,_frame):
         nonlocal stop_local
@@ -255,8 +258,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                     del loss
                 del squared
                 if active:del sample
-                if rank==0 and (updates<=3 or updates%10==0):
-                    print(f'{name} DDP step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
+                if rank==0 and should_log(math.ceil(position/world),math.ceil(len(train)/world),interval):
+                    print(f'{name} DDP epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/world)}/{math.ceil(len(train)/world)} step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
                 if updates%checkpoint_every==0:save(last_path);status('training')
             if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
             metrics=distributed_evaluate(model,norm,manifest,'valid',device,near_wall=config['near_wall'],stop_requested=wants_stop)

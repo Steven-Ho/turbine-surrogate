@@ -1,5 +1,7 @@
 """Launch with torchrun: complete-case multi-node DDP for faNN models 1 through 6."""
 from datetime import timedelta
+from tfai.benchmarks.fann_logging import print
+
 import os
 from pathlib import Path
 import torch

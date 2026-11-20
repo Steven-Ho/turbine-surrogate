@@ -3,6 +3,8 @@
 This distributes parameters and saved activations, not the batch. It does not
 promise throughput scaling: a single case visits stages sequentially.
 """
+from tfai.benchmarks.fann_logging import print
+
 import os
 import torch
 

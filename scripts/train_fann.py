@@ -1,4 +1,6 @@
 """Formal faNN training: explicit domain, geometry holdouts, resume and frozen test."""
+from tfai.benchmarks.fann_logging import print
+
 import argparse
 import json
 import os
