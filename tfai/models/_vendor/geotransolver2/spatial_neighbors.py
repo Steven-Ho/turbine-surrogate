@@ -44,9 +44,11 @@ def tree_candidates(points, queries, radius, neighbors):
     result=np.empty((len(queries),k),dtype=np.int32)
     ambiguous=np.empty(len(queries),dtype=bool)
     eps=np.finfo(points.dtype).eps;r=np.asarray(radius,dtype=points.dtype)
+    workers=int(os.environ.get('TURBINE_GEO_TREE_WORKERS','1'))
+    if workers<1:raise ValueError('TURBINE_GEO_TREE_WORKERS must be positive')
     for lo in range(0,len(queries),chunk_size):
         hi=min(lo+chunk_size,len(queries))
-        _,ids=tree.query(queries[lo:hi],k=search_k,eps=0.,p=2.,workers=1)
+        _,ids=tree.query(queries[lo:hi],k=search_k,eps=0.,p=2.,workers=workers)
         ids=np.asarray(ids).reshape(hi-lo,search_k)
         delta=points[ids]-queries[lo:hi,None,:]
         distances=np.sqrt(np.sum(delta*delta,axis=-1,dtype=points.dtype))

@@ -104,17 +104,21 @@ class BoundedGraphExecution:
 
     def adjacency(self,sample):
         cells=sample['hexahedra'];nodes=len(sample['coordinates'])
-        if cells is self.cells and self.topology is not None:return self.topology
+        if cells is self.cells and self.topology is not None:
+            self.last_topology_source='memory';return self.topology
         digest=hashlib.sha256((SCHEMA+str((nodes,cells.shape,cells.dtype.str))).encode())
         digest.update(memoryview(np.ascontiguousarray(cells)).cast('B'));key=digest.hexdigest()
+        self.last_topology_source='memory'
         if key!=self.key:
             path=self.cache_dir/(key+'.npz')
             with (self.cache_dir/(key+'.lock')).open('a') as lock:
                 fcntl.flock(lock,fcntl.LOCK_EX)
                 if path.exists():
+                    self.last_topology_source='disk'
                     adjacency=sparse.load_npz(path)
                     if adjacency.shape!=(nodes,nodes):raise ValueError('Invalid graph cache shape')
                 else:
+                    self.last_topology_source='built'
                     print(f'{self.name}: building CPU graph nodes={nodes} cells={len(cells)}',flush=True)
                     adjacency=csr_from_hexahedra(cells,nodes)
                     with tempfile.NamedTemporaryFile(dir=self.cache_dir,suffix='.npz',delete=False) as f:
@@ -182,10 +186,40 @@ class BoundedGraphExecution:
             prediction[torch.from_numpy(global_ids)]=model(graph)[owners].detach().cpu()
         return prediction
 
+    def static_matrix(self,adjacency,name,build):
+        directory=self.cache_dir/self.key;directory.mkdir(parents=True,exist_ok=True)
+        path=directory/(name+'.npz')
+        with (directory/(name+'.lock')).open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX)
+            if path.exists():
+                matrix=sparse.load_npz(path)
+                if matrix.shape!=adjacency.shape:raise ValueError('Invalid static graph cache shape')
+                return matrix
+            print(f'{self.name}: building static graph cache {name}',flush=True)
+            matrix=build(adjacency)
+            with tempfile.NamedTemporaryFile(dir=directory,suffix='.npz',delete=False) as stream:temporary=Path(stream.name)
+            try:sparse.save_npz(temporary,matrix,compressed=False);temporary.replace(path)
+            finally:temporary.unlink(missing_ok=True)
+            return matrix
+
+    @staticmethod
+    def square_adjacency(adjacency):
+        augmented=adjacency+sparse.diags((1.-adjacency.diagonal()).astype(np.float32),format='csr')
+        expanded=(augmented@augmented).tocsr();del augmented
+        expanded.setdiag(0.);expanded.eliminate_zeros();expanded.sort_indices()
+        return expanded
+
+    def prepare_unet_static(self,sample):
+        adjacency=self.adjacency(sample)
+        if self.base_normalized is None:
+            self.base_normalized=self.static_matrix(adjacency,'unet_base_normalized_v1',normalize_gcn)
+        if self.base_augmented is None:
+            self.base_augmented=self.static_matrix(adjacency,'unet_base_squared_v1',self.square_adjacency)
+        return adjacency
+
     def graph_unet(self,model,norm,sample,device):
         """Global pooling is preserved; only constant graph algebra is CPU/offloaded."""
-        network=model.net.net;adjacency=self.adjacency(sample)
-        if self.base_normalized is None:self.base_normalized=normalize_gcn(adjacency)
+        network=model.net.net;adjacency=self.prepare_unet_static(sample)
         normalized=self.base_normalized
         x=norm.graph(sample,device,with_edges=False).x
         def convolution(layer,features,matrix):
@@ -198,9 +232,7 @@ class BoundedGraphExecution:
             if i==1 and self.base_augmented is not None:expanded=self.base_augmented
             else:
                 print(f'Graph_UNet: CPU adjacency expansion level={i} nodes={adjacency.shape[0]} input_edges={adjacency.nnz}',flush=True)
-                augmented=adjacency+sparse.diags((1.-adjacency.diagonal()).astype(np.float32),format='csr')
-                expanded=(augmented@augmented).tocsr();del augmented
-                expanded.setdiag(0.);expanded.eliminate_zeros();expanded.sort_indices()
+                expanded=self.square_adjacency(adjacency)
                 print(f'Graph_UNet: expanded_edges={expanded.nnz} CSR_GiB={(expanded.data.nbytes+expanded.indices.nbytes+expanded.indptr.nbytes)/2**30:.2f}',flush=True)
                 if i==1:self.base_augmented=expanded
             pool=network.pools[i-1]

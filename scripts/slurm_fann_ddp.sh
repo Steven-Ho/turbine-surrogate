@@ -58,7 +58,7 @@ printf 'DDP model=%s nodes=%s GPUs/node=%s master=%s:%s\n' "$model" "$SLURM_NNOD
 srun --export=ALL --ntasks="$SLURM_NNODES" --ntasks-per-node=1 --kill-on-bad-exit=1 \
   bash -c 'exec python -m torch.distributed.run --nnodes="$SLURM_NNODES" --nproc_per_node="$FANN_DDP_GPUS_PER_NODE" --node_rank="$SLURM_PROCID" --master_addr="$MASTER_ADDR" --master_port="$MASTER_PORT" scripts/train_fann_ddp.py "$@"' \
   fann-ddp --models "$model" --splits "$FANN_SPLITS" --output "$FANN_RUN_ROOT" --domain "${FANN_DOMAIN:-full}" \
-  --epochs "${FANN_EPOCHS:-400}" --threads "${FANN_THREADS:-4}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" \
+  --epochs "${FANN_EPOCHS:-400}" --threads "${FANN_THREADS:-4}" --scale "${FANN_SCALE:-small}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" \
   --backend "${FANN_DDP_BACKEND:-nccl}" --timeout-minutes "${FANN_DDP_TIMEOUT_MINUTES:-120}" --checkpoint-every "${FANN_DDP_CHECKPOINT_EVERY:-10}" \
   --graph-execution "${FANN_GRAPH_EXECUTION:-bounded}" --graph-owner-nodes "${FANN_GRAPH_OWNER_NODES:-32768}" \
   --graph-edge-chunk "${FANN_GRAPH_EDGE_CHUNK:-262144}" --graph-cache-mb "${FANN_GRAPH_CACHE_MB:-1024}" \

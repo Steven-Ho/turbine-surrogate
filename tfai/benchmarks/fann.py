@@ -143,6 +143,13 @@ class Normalizer:
         return pred.detach().cpu().numpy()*self.scale+self.mean
 
 
+def voxel_queries(xyz,grid):
+    lo=xyz.min(0).values;span=(xyz.max(0).values-lo).clamp_min(1e-8)
+    axes=[torch.linspace(lo[i],lo[i]+span[i],grid,device=xyz.device) for i in range(3)]
+    zz,yy,xx=torch.meshgrid(axes[2],axes[1],axes[0],indexing='ij')
+    return torch.stack([xx,yy,zz],-1),lo,span
+
+
 class FannAdapter(nn.Module):
     def __init__(self,name,train,norm,scale='small',grid=32,rank=32,pod_state=None,pod_geometry_bins=0):
         super().__init__()
@@ -195,11 +202,7 @@ class FannAdapter(nn.Module):
                 geometry=F.adaptive_avg_pool1d(geometry.T[None],self.pod_geometry_bins).squeeze(0).T
             return torch.cat([geometry.flatten(),graph.x[0,-2:]]).unsqueeze(0)
         if self.name!='UNet': return graph
-        xyz=graph.x[:,:3];lo=xyz.min(0).values;span=(xyz.max(0).values-lo).clamp_min(1e-8)
-        axes=[torch.linspace(lo[i],lo[i]+span[i],self.grid,device=xyz.device) for i in range(3)]
-        # Tensor axes D/H/W correspond to z/y/x; grid_sample expects x/y/z.
-        zz,yy,xx=torch.meshgrid(axes[2],axes[1],axes[0],indexing='ij')
-        positions=torch.stack([xx,yy,zz],-1)
+        xyz=graph.x[:,:3];positions,lo,span=voxel_queries(xyz,self.grid)
         cache=getattr(self,'unet_mapping_cache',None)
         if cache:
             from .fann_unet_cache import nearest_mapping

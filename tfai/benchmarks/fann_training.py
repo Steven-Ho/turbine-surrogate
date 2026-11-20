@@ -149,7 +149,7 @@ def store_for(manifest,split,cache_size=1):
                        manifest.get('registered_files'),manifest.get('sample_dependencies'))
 
 
-def fit_streaming_pod(train,norm,rank,directory,chunk=65536):
+def fit_streaming_pod(train,norm,rank,directory,chunk=65536,progress=None):
     """Method of snapshots using disk-backed fields; no full snapshot stack in RAM."""
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     ref=train[0];nodes=len(ref['coordinates']);dofs=nodes*6;cases=len(train)
@@ -159,6 +159,7 @@ def fit_streaming_pod(train,norm,rank,directory,chunk=65536):
         raise ValueError(f'Insufficient POD scratch space: need about {required/1e9:.1f} GB plus margin')
     snapshots=np.memmap(directory/'snapshots.f32',mode='w+',dtype='float32',shape=(cases,dofs))
     for i,sample in enumerate(train):
+        if progress is not None and i%10==0:progress(f'POD snapshots {i+1}/{cases}')
         if not np.array_equal(sample['original_node_ids'],ref['original_node_ids']) or (sample['hexahedra'] is not ref['hexahedra'] and not np.array_equal(sample['hexahedra'],ref['hexahedra'])):
             raise ValueError('POD needs corresponding node IDs and topology')
         for start in range(0,nodes,chunk):
@@ -166,6 +167,7 @@ def fit_streaming_pod(train,norm,rank,directory,chunk=65536):
             snapshots[i,start*6:end*6]=((sample['targets'][start:end]-norm.mean)/norm.scale).reshape(-1)
     snapshots.flush();gram=np.zeros((cases,cases),dtype=np.float64)
     for start in range(0,dofs,chunk*6):
+        if progress is not None and (start//(chunk*6))%10==0:progress(f'POD Gram {start}/{dofs} field entries')
         block=np.asarray(snapshots[:,start:start+chunk*6],dtype=np.float64)
         gram+=block@block.T
     values,vectors=np.linalg.eigh(gram);order=np.argsort(values)[::-1]
@@ -173,7 +175,9 @@ def fit_streaming_pod(train,norm,rank,directory,chunk=65536):
     if not len(keep):raise ValueError('POD training snapshots have zero numerical rank')
     transform=vectors[:,keep]/np.sqrt(values[keep])[None,:]
     basis=np.memmap(directory/'basis.f32',mode='w+',dtype='float32',shape=(dofs,len(keep)))
-    for start in range(0,dofs,chunk*6):basis[start:start+chunk*6]=snapshots[:,start:start+chunk*6].T@transform
+    for start in range(0,dofs,chunk*6):
+        if progress is not None and (start//(chunk*6))%10==0:progress(f'POD basis {start}/{dofs} field entries')
+        basis[start:start+chunk*6]=snapshots[:,start:start+chunk*6].T@transform
     basis.flush();del snapshots
     (directory/'snapshots.f32').unlink()
     return {'basis':torch.from_numpy(basis),'node_ids':torch.from_numpy(ref['original_node_ids'].astype(np.int64))}
@@ -184,7 +188,11 @@ def build_model(name,train,norm,config,state=None,scratch=None):
     if name=='POD':
         if state is not None:pod_state={'basis':state['basis'],'node_ids':state['node_ids']}
         elif config.get('streaming_pod',False):
-            pod_state=fit_streaming_pod(train,norm,config['rank'],scratch)
+            cache=os.environ.get('TURBINE_FANN_POD_CACHE','runs/fann_pod_cache_v1')
+            if cache and cache!='0':
+                from .fann_pod_cache import shared_pod_basis
+                pod_state=shared_pod_basis(train,norm,config['rank'],cache,scratch)
+            else:pod_state=fit_streaming_pod(train,norm,config['rank'],scratch)
     model=FannAdapter(name,train,norm,scale=config['scale'],grid=config['grid'],rank=config['rank'],
                       pod_state=pod_state,pod_geometry_bins=config['pod_geometry_bins'])
     if name=='UNet':
@@ -199,7 +207,10 @@ def build_model(name,train,norm,config,state=None,scratch=None):
         model.net.activation_offload=os.environ.get('TURBINE_GEO_ACTIVATION_OFFLOAD','1')=='1'
         chunk=int(os.environ.get('TURBINE_GEO_NODE_CHUNK','32768'))
         if chunk<0:raise ValueError('TURBINE_GEO_NODE_CHUNK must be nonnegative')
-        for module in model.net.model.modules():module.node_chunk_size=chunk
+        for module in model.net.model.modules():
+            module.node_chunk_size=chunk
+            if hasattr(module,'index_cache') and module.index_cache.directory is None and 'TURBINE_GEO_CACHE_DIR' not in os.environ:
+                module.index_cache.directory=Path('runs/fann_neighbor_cache').resolve()
     if state is not None:model.load_state_dict(state,strict=True)
     if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
         from .fann_graph_execution import BoundedGraphExecution

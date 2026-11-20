@@ -94,7 +94,7 @@ class BQWarp(nn.Module):
                 all_valid.append(valid.T.contiguous())
         return torch.cat(all_indices, dim=0), torch.cat(all_valid, dim=0)
 
-    def _spatial_indices(self, points, queries):
+    def _spatial_raw(self, points, queries):
         if points.dtype not in (torch.float32, torch.float64) or queries.dtype != points.dtype:
             raise ValueError('Spatial query requires matching float32/float64 coordinates; use backend=torch otherwise')
         with torch.no_grad():
@@ -137,6 +137,12 @@ class BQWarp(nn.Module):
                 self.cache_hits += 1
                 if source == 'memory': self.memory_cache_hits += 1
                 if source == 'disk': self.disk_cache_hits += 1
+            self.last_cache_key=key
+            return raw
+
+    def _spatial_indices(self,points,queries):
+        with torch.no_grad():
+            raw=self._spatial_raw(points,queries)
             signed = torch.as_tensor(raw.astype(np.int64), device=points.device)
             valid = signed >= 0
             return signed.clamp_min(0), valid

@@ -1,0 +1,90 @@
+{
+  "tests": {
+    "related_regressions": {
+      "count": 66,
+      "result": "passed",
+      "log": "/tmp/fann_precompute_regression.log"
+    },
+    "additional_cpu_tests": {
+      "count": 3,
+      "result": "passed",
+      "seconds": 49.383,
+      "log": "/tmp/fann_precompute_cpu_ddp_tests.log",
+      "CUDA_VISIBLE_DEVICES": ""
+    }
+  },
+  "gpu_policy": "GPU fixture tests completed before user requested skipping further GPU validation; all subsequent tests CPU only. No full X203 validation.",
+  "real_static_graph_probe": {
+    "scope": "One real faNN full topology, static matrices only; not complete Graph_UNet training or X203 throughput",
+    "nodes": 9806346,
+    "results": {
+      "first_prepare": {
+        "seconds": 13.135456441901624,
+        "base_edges": 58075160,
+        "squared_edges": 230028876,
+        "static_artifact_bytes": 2461736346
+      },
+      "warm_process": {
+        "seconds": 1.3756890851072967,
+        "base_edges": 58075160,
+        "squared_edges": 230028876,
+        "static_artifact_bytes": 2461736346
+      }
+    },
+    "peak_process_RSS_GiB": 4.984474182128906
+  },
+  "prior_gpu_fixture": {
+    "scope": "Small fixture, two RTX3090 GPUs; cache prepared on first and consumed on second without rebuilding; not X203/full-dataset timing",
+    "results": {
+      "POD": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "UNet": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "GCN": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "Graph_UNet": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "Graph_Transformer": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "Transolver_3": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      },
+      "GeoTransolver": {
+        "state": "prepared_on_gpu0_consumed_on_gpu1_without_rebuild",
+        "output_shape": [
+          8,
+          6
+        ]
+      }
+    }
+  }
+}
