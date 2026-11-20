@@ -220,4 +220,9 @@ class FannAdapter(nn.Module):
         if self.name=='UNet':
             volume,query=inputs
             return F.grid_sample(self.net(volume),query,mode='bilinear',align_corners=True).reshape(6,-1).T
+        if self.name=='GeoTransolver' and getattr(self,'amp_mode','off')=='bf16':
+            # Coordinates retain FP32; only eligible network operators autocast.
+            with torch.autocast(device_type=inputs.x.device.type,dtype=torch.bfloat16):
+                output=self.net(inputs)
+            return output.float()
         return self.net(inputs)

@@ -22,7 +22,9 @@ def context_slices(module,x,size):
     def aggregate(part):
         projected,features=module.project_input_onto_slices(part)
         weights=torch.softmax(module.in_project_slice(projected)/module.temperature.clamp(.5,5).to(part.dtype),dim=-1)
-        return weights.transpose(2,3)@features,weights.sum(2)
+        value=weights.transpose(2,3)@features
+        if torch.is_autocast_enabled(part.device.type):return value.float(),weights.float().sum(2)
+        return value,weights.sum(2)
     for part in x.split(size,dim=1):
         value,total=recompute(aggregate,part)
         numerator=value if numerator is None else numerator+value
@@ -37,7 +39,9 @@ def gale_attention(module,inputs,context,size):
         def aggregate(part):
             projected,features=module.project_input_onto_slices(part)
             weights=torch.softmax(module.in_project_slice(projected)/module.temperature.clamp(.5,5).to(part.dtype),dim=-1)
-            return weights.permute(0,2,3,1)@features.permute(0,2,1,3),weights.sum(1)
+            value=weights.permute(0,2,3,1)@features.permute(0,2,1,3)
+            if torch.is_autocast_enabled(part.device.type):return value.float(),weights.float().sum(1)
+            return value,weights.sum(1)
         for part in x.split(size,dim=1):
             value,total=recompute(aggregate,part)
             numerator=value if numerator is None else numerator+value

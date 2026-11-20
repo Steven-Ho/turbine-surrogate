@@ -19,6 +19,7 @@ def build_parser():
     p.add_argument('--domain',choices=['full','structured_patches','legacy'],default='full')
     p.add_argument('--device',default='cuda')
     p.add_argument('--epochs',type=int,default=400)
+    p.add_argument('--amp',choices=['off','bf16'],default='off',help='BF16 autocast for GeoTransolver; parameters/gradients stay FP32')
     p.add_argument('--resume',action='store_true')
     p.add_argument('--allow-legacy-inputs',action='store_true')
     p.add_argument('--seed',type=int,default=42)

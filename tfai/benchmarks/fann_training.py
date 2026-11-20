@@ -206,6 +206,7 @@ def build_model(name,train,norm,config,state=None,scratch=None):
         model.net.use_checkpoint=os.environ.get('TURBINE_FANN_TRANSOLVER_CHECKPOINT','1')=='1'
         print(f'Transolver_3: chunk={chunk} checkpoint={model.net.use_checkpoint}',flush=True)
     if name=='GeoTransolver':
+        model.amp_mode=config.get('amp','off')
         model.net.activation_offload=os.environ.get('TURBINE_GEO_ACTIVATION_OFFLOAD','1')=='1'
         chunk=int(os.environ.get('TURBINE_GEO_NODE_CHUNK','32768'))
         if chunk<0:raise ValueError('TURBINE_GEO_NODE_CHUNK must be nonnegative')
@@ -275,7 +276,7 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
 
 def assert_resume_config(old,new):
     immutable=['seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
-               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema']
+               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema','amp']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))
 
@@ -291,11 +292,13 @@ def train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
 
 def execution_config(name,config):
     config=dict(config)
+    if config.get('amp','off')=='off':config.pop('amp',None)
+    elif config['amp']!='bf16' or name!='GeoTransolver':raise ValueError('BF16 AMP currently supports GeoTransolver only')
     if name not in GRAPH_MODELS:
         config={key:value for key,value in config.items() if not key.startswith('graph_')}
     if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
         from .fann_graph_execution import SCHEMA as graph_schema
-        config['graph_execution_schema']=graph_schema
+        config['graph_execution_schema','amp']=graph_schema
     if name=='GeoTransolver':
         from tfai.models._vendor.geotransolver2.spatial_neighbors import SCHEMA
         config['geo_neighbor_policy']={'schema':SCHEMA,'backend':os.environ.get('TURBINE_GEO_QUERY_BACKEND','kdtree'),

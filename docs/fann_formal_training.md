@@ -632,3 +632,19 @@ export FANN_POD_CACHE_CHECKPOINT=runs/实际旧结果/POD/last.pt
 训练入口、模型初始化、图执行和epoch汇总日志使用带UTC偏移的北京时间，例如 `[2026-11-20T18:30:00+08:00]`。普通batch日志包含epoch、batch、全局step、当前MSE、累计训练MSE、学习率、batch耗时和当前模型所用GPU的已分配显存之和。DDP保留全局batch loss及rank0步骤耗时。耗时不增加额外GPU同步；单步很慢时仍需等待该batch完成才打印，无定时心跳。验证完成后继续打印epoch汇总。
 
 GPU繁忙时只需在集群 `git pull` 后新启动或安全续训；已运行进程不会自动改变日志行为。
+
+
+## GeoTransolver：2节点BF16 AMP对比
+
+```bash
+git pull
+bash scripts/submit_fann_geo_amp.sh
+```
+
+提交2节点×8卡，每节点768G主存、32 CPU，启用 `FANN_AMP=bf16`，默认400轮，每个batch打印时间。输出默认新建 `runs/fann_geo_bf16_2nodes_时间/GeoTransolver/`，仍沿用既定FANN_SPLITS和已有几何缓存。可在命令末尾追加Slurm参数，例如 `bash scripts/submit_fann_geo_amp.sh --partition=实际分区`。
+
+短程吞吐对比可先 `export FANN_MAX_UPDATES=20`，以20次全局更新为界安全保存并停止；正式400轮前 `unset FANN_MAX_UPDATES`。若先前已设置FANN_RUN_ROOT，请改为独立空目录，避免覆盖FP32实验。新脚本强制新开训练；续训BF16实验应使用原DDP脚本并设置FANN_AMP=bf16、FANN_RESUME=1及对应FANN_RUN_ROOT。
+
+BF16 autocast覆盖Geo网络前向，参数/梯度/Adam保持FP32，坐标和邻域缓存策略不变，输出转FP32后计算损失；分块切片的跨块累计保持FP32。检查点记录amp配置，拒绝把FP32检查点当作BF16精确续训。评估和冻结检查点加载沿用其精度设置。当前仅支持GeoTransolver的off/bf16，不支持FP16开关。
+
+FP32对照继续使用原DDP脚本并 `export FANN_AMP=off`，其他设置、节点数、训练数据、随机种子、chunk及CPU卸载应相同。对比预热后连续batch的rank0_seconds及验证误差，不用首步外推。BF16暂未在X203验证，须关注算子支持、非有限值和验证精度；本地验证只使用CPU，未占用GPU。
