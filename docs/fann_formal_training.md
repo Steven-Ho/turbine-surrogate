@@ -760,3 +760,23 @@ bash scripts/submit_fann_geo_single_node.sh
 若只做更短测试，可设置FANN_SINGLE_NODE_MAX_UPDATES=20，此时只训练160例，尚未完成一轮，不能与双节点20步的总时间直接比较。启动日志应显示world_size=8、amp=bf16、geo_activation_offload=False、geo_node_chunk=32768，并且不出现geometry affinity enabled。
 
 判断扩展：设单节点稳定步骤平均t8、双节点平均t16，则吞吐扩展比约2*t8/t16，双节点相对线性扩展效率约t8/t16；尾批、验证和保存时间另外计入总工期。最终是否值得增加节点，应兼顾工期和GPU小时。缓存/节点运行状态仍可能不同，必要时重复对照。
+
+
+## 同节点1/2/4/8卡扩展诊断
+
+```bash
+git pull
+bash scripts/submit_fann_geo_scaling.sh
+```
+
+一次申请1节点8卡、32 CPU、768G主存，在同一节点分配中依次运行1、2、4、8个训练进程，其余卡在相应阶段空闲。各配置独立新开seed42训练，固定BF16、关闭CPU卸载、随机采样、512MiB CPU缓存、32768节点分块和每进程4线程。OpenMP、MKL和OpenBLAS线程均明确限制为4。不会同时运行各组，也不覆盖原结果。每组结束后进程退出，再启动下一组。
+
+默认各组均使用同一首轮随机样本序列的前80例：16例预热，64例计量。对应1卡80步、2卡40步、4卡20步、8卡10步。计量样本数相同；全局batch和参数更新轨迹不同，不能按同一步loss比较。预算总和必须不超过训练集大小，并且预热/计量预算均须被各卡数整除，以避免跨轮或尾批改变对照样本。此诊断不运行验证，关闭中途定期检查点，仍保存初始和结束状态；计量排除启动、预热及最终保存时间。
+
+输出默认 `runs/fann_geo_scaling_作业号/`：report.json记录状态和结果，summary.csv列出卡数、计量例数、实际墙钟耗时、cases/s、单卡相对加速比和效率。计量墙钟区间从最后一个预热batch日志到最后一个计量batch日志，包含正常训练步骤间开销；mean_rank0_seconds为日志步骤耗时的平均值。各gpus_卡数子目录包含console.log、steps.json及GeoTransolver检查点。Slurm日志为logs/fann_geo_scaling_作业号.out/.err。
+
+自定义测量量：提交前设置FANN_SCALING_WARMUP_CASES和FANN_SCALING_MEASURE_CASES，默认16/64，必须为正且被8整除。FANN_SCALING_OUTPUT可指定新的输出目录；目录已存在会拒绝覆盖。需要更短测试可用16/32，但8卡计量仅4步，统计稳定性较弱。套件逐步输出日志，不需要全量重新预计算缓存。
+
+相对加速比=该卡数cases/s÷单卡cases/s；效率=加速比÷卡数。若4/8卡吞吐明显偏离线性，应结合console.log中的主存/显存峰值检查节点内争用和DDP；该实验本身不把纯GPU计算与通信分离。后运行的配置可能受益于OS文件缓存，同一节点也可能存在其他资源负载，必要时重复或用Python入口 --gpu-counts 8 4 2 1反序验证（保持预算满足整除）。此脚本默认关闭同步阶段诊断，避免计时改变重叠行为。
+
+CPU小样例已验证1/2进程预算与报告逻辑；未在本机运行GPU诊断。集群实测后提供summary.csv、report.json和Slurm .out即可比较扩展效率。

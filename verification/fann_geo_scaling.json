@@ -1,0 +1,33 @@
+{
+  "scope": "CPU-only suite validation; no GPU throughput measured locally",
+  "integration_test": {
+    "count": 1,
+    "result": "passed",
+    "log": "/tmp/fann_scaling_cpu_tests.log",
+    "coverage": "sequential 1/2-process BF16 runs, fixed sample budgets, warmup exclusion, isolated checkpoints, random sampler, offload disabled and CSV/JSON reports"
+  },
+  "submission": "mock sbatch passed; shell syntax checked",
+  "cluster_defaults": {
+    "nodes": 1,
+    "allocated_gpus": 8,
+    "sequential_process_counts": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "warmup_cases_per_variant": 16,
+    "measured_cases_per_variant": 64,
+    "threads_per_process": 4,
+    "CPU_offload": false,
+    "amp": "bf16",
+    "node_chunk": 32768,
+    "neighbor_cache_MiB_per_module": 512
+  },
+  "limitations": [
+    "Same case sequence but different optimizer trajectories with different global batch sizes",
+    "Later variants may benefit from OS file cache",
+    "Holding one 8-GPU allocation while smaller variants run leaves other GPUs idle",
+    "No validation or periodic checkpoint during measurement; init/final checkpoint costs excluded"
+  ]
+}
