@@ -20,6 +20,7 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_geometric.data import Data
+from .fann_timing import DistributedTiming
 from .fann import FIELDS,Normalizer
 from .fann_training import (FORMAT_VERSION,RunLockedError,assert_resume_config,atomic_json,
                            build_model,evaluate,file_hash,prepare_input,store_for,execution_config,GRAPH_MODELS)
@@ -176,6 +177,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     train=store_for(manifest,'train',config['cache_samples'])
     if position<0 or position>len(train):raise ValueError('Invalid checkpoint sample position')
     interval=log_every()
+    timing=DistributedTiming(folder,device)
     stop_local=False;updates=0;started=time.perf_counter();handlers={};finalizing=False
     def request_stop(_signal,_frame):
         nonlocal stop_local
@@ -186,6 +188,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         if rank==0:atomic_json({'state':state,'model':name,'completed_epochs':epoch,'global_step':global_step,
                                'position':position,'world_size':world,'scope':manifest['scope'],**extra},folder/'status.json')
     def save(path):
+        timing_start=timing.begin()
         states=[None]*world;dist.all_gather_object(states,local_rng(device))
         if rank==0:
             checkpoint={'format_version':FORMAT_VERSION,'model':name,'state_dict':model.state_dict(),
@@ -202,6 +205,14 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                                      'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None)}}
             atomic_torch_save(checkpoint,path)
         dist.barrier()
+        phases={};timing.mark(phases,'checkpoint_total',timing_start)
+        timing.emit('checkpoint',phases,step=global_step,epoch=epoch,path=str(path))
+    def timed_evaluate(split,output=None):
+        timing_start=timing.begin()
+        result=distributed_evaluate(model,norm,manifest,split,device,output,config['near_wall'],wants_stop)
+        phases={};timing.mark(phases,'evaluation_total',timing_start)
+        timing.emit('evaluation',phases,step=global_step,epoch=epoch,split=split,write_predictions=output is not None)
+        return result
     def interrupted():
         if not finalizing:save(last_path)
         status('interrupted')
@@ -216,19 +227,28 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 model.train()
                 if ddp is not None:ddp.train()
                 optimizer.zero_grad(set_to_none=True);step_start=time.perf_counter()
+                profiling=updates<timing.limit
+                phase_times={};phase_start=timing.begin(profiling);profile_start=phase_start
                 end=min(position+world,len(order));batch_cases=end-position;active=position+rank<end
                 batch_rng=local_rng(device) if manual else None;aborted=False
                 global_elements=sum(manifest['splits']['train'][order[i]]['nodes']*6 for i in range(position,end))
                 if active:
                     sample=train[order[position+rank]];elements=sample['targets'].size
+                    phase_start=timing.mark(phase_times,'load_sample',phase_start)
                     if manual and name in ('GCN','Graph_Transformer'):
                         value=model.graph_executor.backward_sample(model,norm,sample,device,
                             stop_requested=wants_stop,loss_scale=world*elements/global_elements)
+                        phase_start=timing.mark(phase_times,'input_forward_backward_combined',phase_start)
                         aborted=value is None
                         squared=torch.tensor(0. if aborted else value*elements,device=device,dtype=torch.float64)
                     else:
-                        prediction=(model.graph_executor.graph_unet(model,norm,sample,device) if manual
-                                    else ddp(prepare_input(model,norm,sample,device)))
+                        if manual:
+                            prediction=model.graph_executor.graph_unet(model,norm,sample,device)
+                        else:
+                            inputs=prepare_input(model,norm,sample,device)
+                            phase_start=timing.mark(phase_times,'prepare_input',phase_start)
+                            prediction=ddp(inputs);del inputs
+                        phase_start=timing.mark(phase_times,'forward',phase_start)
                         target=norm.target(sample,device)
                         if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
                         squared=(prediction-target).square().sum()
@@ -239,6 +259,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                     # Native DDP ranks still need one tiny, zero-gradient forward.
                     ddp.eval();prediction=ddp(dummy_input(model,device));ddp.train()
                     squared=prediction.sum()*0.;elements=0
+                phase_start=timing.mark(phase_times,'target_loss_or_idle',phase_start)
                 if manual and stopped(aborted or wants_stop(),device):
                     optimizer.zero_grad(set_to_none=True);restore_local_rng(batch_rng,device)
                     return interrupted()
@@ -246,12 +267,16 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 bad_loss=torch.tensor(int(not torch.isfinite(squared).item()),device=device);dist.all_reduce(bad_loss,op=dist.ReduceOp.MAX)
                 if bad_loss.item():raise ValueError('Nonfinite DDP training loss')
                 dist.all_reduce(aggregate)
+                phase_start=timing.mark(phase_times,'loss_collectives',phase_start)
                 if not (manual and name in ('GCN','Graph_Transformer')):
                     loss=squared*(world/aggregate[1])
                     if active or not manual:loss.backward()
+                phase_start=timing.mark(phase_times,'backward_with_ddp_sync' if not manual else 'backward',phase_start)
                 if manual:mean_case_gradients(model)
+                phase_start=timing.mark(phase_times,'manual_gradient_sync',phase_start)
                 torch.nn.utils.clip_grad_norm_(model.parameters(),config['grad_clip'],error_if_nonfinite=True)
                 optimizer.step();global_step+=1;updates+=1;position=end
+                phase_start=timing.mark(phase_times,'clip_optimizer',phase_start)
                 pending_sum+=float(aggregate[0]);pending_count+=int(aggregate[1])
                 if not (manual and name in ('GCN','Graph_Transformer')):
                     if active or not manual:del prediction
@@ -260,9 +285,13 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 if active:del sample
                 if rank==0 and should_log(math.ceil(position/world),math.ceil(len(train)/world),interval):
                     print(f'{name} DDP epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/world)}/{math.ceil(len(train)/world)} step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
+                if profiling:
+                    phase_start=timing.mark(phase_times,'bookkeeping',phase_start)
+                    phase_times['step_total']=phase_start-profile_start
+                    timing.emit('train_step',phase_times,step=global_step,epoch=epoch+1,active=active,batch_cases=batch_cases)
                 if updates%checkpoint_every==0:save(last_path);status('training')
             if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
-            metrics=distributed_evaluate(model,norm,manifest,'valid',device,near_wall=config['near_wall'],stop_requested=wants_stop)
+            metrics=timed_evaluate('valid')
             if metrics is None:return interrupted()
             value=metrics['normalized_mse'];scheduler.step(value);epoch+=1;position=0
             improved=value<best
@@ -280,9 +309,9 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         training_seconds=elapsed+time.perf_counter()-started;finalizing=True
         best_saved=torch.load(best_path,map_location='cpu',weights_only=False);model.load_state_dict(best_saved['state_dict'],strict=True)
         status('evaluating',best_epoch=best_saved['completed_epochs'])
-        validation=distributed_evaluate(model,norm,manifest,'valid',device,folder/'predictions/valid',config['near_wall'],wants_stop)
+        validation=timed_evaluate('valid',folder/'predictions/valid')
         if validation is None:return interrupted()
-        test=distributed_evaluate(model,norm,manifest,'test',device,folder/'predictions/test',config['near_wall'],wants_stop)
+        test=timed_evaluate('test',folder/'predictions/test')
         if test is None:return interrupted()
         report={'state':'complete','model':name,'completed_epochs':epoch,'best_epoch':best_saved['completed_epochs'],
                 'optimizer_steps':global_step,'early_stopped':bad>=config['patience'],'best_checkpoint_sha256':file_hash(best_path),

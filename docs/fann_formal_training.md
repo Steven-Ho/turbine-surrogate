@@ -655,3 +655,23 @@ FP32对照继续使用原DDP脚本并 `export FANN_AMP=off`，其他设置、节
 针对集群已确认准备数据内容不变、但活跃作业触发Registered faNN data changed的情况，SampleStore不再在读取前后比较文件元数据，包括缓存命中及重新加载。所有使用该读取器的模型、普通/DDP训练、验证及测试均生效。启动阶段仍检查登记是否可复用，实际文件缺失或无法读取仍正常报错。无需重建几何、POD、图或邻域缓存。
 
 集群git pull后，设置原FANN_RUN_ROOT、FANN_RESUME=1、FANN_AMP=off，按原2节点16卡配置重新提交scripts/slurm_fann_ddp.sh的array=6作业，可从1827的last.pt继续。不要使用强制新开训练的submit_fann_geo_amp.sh恢复该FP32作业。
+
+
+## DDP分阶段与跨rank计时
+
+默认关闭。提交前设置 `export FANN_PROFILE_STEPS=20`，会对本次启动后前20个全局batch计时（续训也重新计数）；可结合 `FANN_MAX_UPDATES=20` 做短程测试。此开关不改变检查点训练配置。开启后，检查点和验证/最终测试阶段也计时；所有rank必须使用相同开关。
+
+```bash
+export FANN_PROFILE_STEPS=20
+export FANN_MAX_UPDATES=20
+export FANN_LOG_EVERY=1
+bash scripts/submit_fann_geo_amp.sh
+```
+
+rank0打印带时间戳的DDP timing日志，并在结果模型目录追加 `timings.jsonl`。每条记录包含各rank主机、阶段秒数、是否实际处理样本、显存已分配量及进程生命周期峰值；summary给出各阶段min/mean/max及最慢rank编号。train_step记录step/epoch、load_sample、prepare_input、forward、target_loss_or_idle、loss_collectives、backward_with_ddp_sync、clip_optimizer和step_total等。
+
+原生DDP的梯度通信与反向重叠，因此backward_with_ddp_sync包含反向计算、梯度通信和等待，不能解释成纯GPU计算时间。GCN/Graph_Transformer分区反向仍记录为input_forward_backward_combined，随后独立记录manual_gradient_sync；Graph_UNet输入与前向合并计入forward。CPU激活卸载/恢复和梯度重计算包含在相应forward/backward内。短尾batch的空闲rank仍执行必要DDP操作，需结合active标记解释，不能把其阶段耗时与完整样本直接比较。
+
+checkpoint事件包含RNG收集、rank0序列化写盘及各rank屏障等待；evaluation事件包含该rank的加载/推理/指标统计及最终集体通信，最终评估还包含预测写盘。step_total不包含后续性能报告收集和检查点；它包含本步常规日志及记账开销。不同阶段的最大值不能相加冒充某一rank总耗时，使用step_total的max判断慢rank。
+
+计时会在阶段边界同步GPU，并额外收集各rank记录，可能改变流水重叠和吞吐，仅用于诊断。20步后的常规训练不再添加batch阶段同步；若仍开启计时，后续检查点/验证事件继续记录。正式吞吐复测应 `unset FANN_PROFILE_STEPS`，正式完整训练还需 `unset FANN_MAX_UPDATES`。CPU路径已验证，X203性能须集群实测。
