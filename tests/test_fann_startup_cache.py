@@ -47,11 +47,14 @@ class StartupCacheTests(unittest.TestCase):
             digest.update((key+str(sample[key].shape)+str(sample[key].dtype)).encode())
             digest.update(np.ascontiguousarray(sample[key]).tobytes())
         self.assertEqual(sample['fingerprint'],digest.hexdigest())
-    def test_new_data_invalidates_cache_and_active_store_rejects_changes(self):
+    def test_new_data_invalidates_startup_cache_without_active_store_checks(self):
         initial=self.start();store=store_for(initial,'train');store[0]
         target=load_sample(self.root/'case_0.npz')['targets']+1
         self.rewrite(0,targets=target)
-        with self.assertRaisesRegex(ValueError,'data changed'):store[0]
+        with patch('tfai.benchmarks.fann_startup_cache.verify_files',side_effect=AssertionError('No runtime file verification')):
+            store[0]  # Cached read trusts the original registration.
+            store.cache.clear()
+            np.testing.assert_array_equal(store[0]['targets'],target)
         changed=self.start()
         self.assertNotEqual(initial['signature'],changed['signature'])
     def test_validation_targets_never_enter_training_statistics(self):

@@ -55,14 +55,11 @@ class SampleStore:
     def __iter__(self):
         for i in range(len(self)):yield self[i]
     def __getitem__(self,index):
-        if self.registered_files is not None:
-            from .fann_startup_cache import verify_files
-            dependencies={path:self.registered_files[path] for path in self.sample_dependencies[self.paths[index]]}
-            verify_files(dependencies)
         if index not in self.cache:
             if self.registered_files is not None:
                 sample=load_sample(self.paths[index],validate=False)
-                verify_files(dependencies)
+                # Prepared data are immutable for this run: trust startup registration.
+                # Do not compare per-node filesystem metadata during training/evaluation.
                 sample['fingerprint']=self.fingerprints[index]
             else:sample=load_sample(self.paths[index])
             if self.fingerprints and sample['fingerprint']!=self.fingerprints[index]:
