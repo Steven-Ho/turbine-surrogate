@@ -724,3 +724,23 @@ bash scripts/submit_fann_geo_no_offload.sh
 ```
 
 本脚本是新开训练入口；续训已保存的无卸载基线时用原slurm_fann_ddp.sh，设置对应FANN_RUN_ROOT、FANN_RESUME=1、FANN_AMP=bf16、TURBINE_GEO_ACTIVATION_OFFLOAD=0、TURBINE_GEO_NODE_CHUNK=32768，并取消FANN_MAX_UPDATES/FANN_PROFILE_STEPS。不要直接用本入口续训，因为它通过AMP提交器固定新开模式。单卡两例无卸载诊断可运行不保证所有训练算例均不OOM，先以此20步基线确认容量。
+
+
+## GeoTransolver几何优先采样与有界缓存实验
+
+```bash
+git pull
+bash scripts/submit_fann_geo_affinity.sh
+```
+
+新入口采用2节点×8卡、BF16、CPU卸载关闭、节点块32768和4GiB/邻域模块/进程的CPU LRU，默认20次真实训练更新。同步诊断计时关闭，输出独立的 `runs/fann_geo_affinity_2nodes_时间/GeoTransolver/`。它与1965的4GiB缓存实验主要区别是采样顺序；不要期待同一步loss与随机采样相同。可用FANN_AFFINITY_RUN_ROOT指定新的目录、FANN_AFFINITY_CACHE_MB调整缓存、FANN_BASELINE_MAX_UPDATES调整更新上限。显式空FANN_BASELINE_MAX_UPDATES请求完整epoch预算。
+
+采样方式：以完整原始坐标哈希确定几何，复用预计算的geometry索引；不依赖GeometryNumber相同的假设。根据训练集中每种几何的样本数量，将几何组均衡分配到固定优先rank。每轮打乱各rank内的几何组顺序及组内工况顺序，组内样本连续访问以争取设备缓存命中。若某rank的队列先耗尽，则从剩余最长队列转移样本，确保除最后一批外所有rank都工作。每个样本每轮仅使用一次，不补齐重复、不丢弃尾部，全局batch数量仍为ceil(N/world)，损失仍按节点元素数加权。
+
+这不是严格的固定rank分区，也不保证各几何实际计算时间相等；均衡的是样本数量。较大的几何组可能部分转移给其他rank。更新批次组成发生变化，属于新的训练实验，应重新检查验证精度。默认随机采样保持不变，可通过torchrun入口 --sampler geometry_affinity 或环境变量FANN_DDP_SAMPLER=geometry_affinity显式启用，仅支持GeoTransolver DDP。
+
+启动时输出geometry affinity enabled。结果目录中的geometry_affinity.json记录优先rank和几何分组；sampling/rank_编号.jsonl逐步记录样本路径、几何键、优先rank、实际rank、active和各级邻域cache_delta。在检查点及结束时写入，避免逐batch额外同步GPU。device_cache_hits包含同一前向内的复用，解释时应结合连续样本几何；空闲rank的dummy forward也可能产生缓存事件，以active字段区分。
+
+已有几何索引直接读取；不存在时会首次读取各样本坐标建立索引，不读取目标场作几何分组。几何键和采样schema进入检查点，支持同一world_size下的中断精确恢复；不允许把随机采样检查点作为几何模式精确续训。更换world_size会重分配优先rank，延用原有非精确轨迹提示。恢复本实验仍使用slurm_fann_ddp.sh并显式设置原FANN_RUN_ROOT、FANN_RESUME=1、FANN_AMP=bf16、FANN_DDP_SAMPLER=geometry_affinity、TURBINE_GEO_ACTIVATION_OFFLOAD=0及匹配缓存配置。
+
+本地仅做CPU验证：不重不漏、批次数与负载平衡、极端几何组、调度可重现、BF16两进程短尾训练、中断前后参数/优化器/调度器一致，以及原随机模式梯度参考。集群收益需以实际batch耗时和sampling记录判定。

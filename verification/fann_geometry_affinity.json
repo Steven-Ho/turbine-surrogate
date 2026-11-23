@@ -1,0 +1,37 @@
+{
+  "scope": "CPU-only implementation validation, no cluster throughput claim",
+  "tests": [
+    {
+      "count": 3,
+      "result": "passed",
+      "log": "/tmp/fann_sampling_tests.log",
+      "coverage": "planner coverage/balance, geometry-affinity exact resume, original random gradient reference"
+    },
+    {
+      "count": 5,
+      "result": "passed",
+      "log": "/tmp/fann_sampling_regression.log",
+      "coverage": "planner, BF16 geometry-affinity optimizer/weights/scheduler resume identity, original random DDP and BF16 tests"
+    },
+    {
+      "count": 1,
+      "result": "passed",
+      "log": "/tmp/fann_sampling_graph_compat.log",
+      "coverage": "bounded graph formal resume and evaluation"
+    },
+    {
+      "count": 1,
+      "result": "passed",
+      "log": "/tmp/fann_sampling_config_tests.log",
+      "coverage": "sampler immutable identity and legacy graph schema compatibility"
+    }
+  ],
+  "submission": "mock sbatch passed: 2 nodes x 8 GPUs, BF16, CPU offload off, 4GiB/module/rank CPU cache, 20 updates, independent result root",
+  "notes": [
+    "Test runs overlap in coverage; counts are not a unique-test total",
+    "Every sample appears once per epoch; no tail duplication or dropped samples",
+    "Preferred geometry owner uses work stealing to keep full global batches",
+    "Training order changes: accuracy and X203 throughput require cluster evaluation",
+    "Incidental graph configuration tuple-key issue repaired with backward-compatible resume normalization"
+  ]
+}

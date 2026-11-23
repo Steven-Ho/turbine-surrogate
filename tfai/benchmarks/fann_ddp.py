@@ -20,6 +20,7 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_geometric.data import Data
+from .fann_sampling import SCHEMA as SAMPLING_SCHEMA,registered_geometry_keys,geometry_batches,geometry_owners,query_counts,append_records
 from .fann_timing import DistributedTiming
 from .fann_geo_diagnostics import GeoQueryTrace
 from .fann import FIELDS,Normalizer
@@ -177,6 +178,27 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
             if rank==0:print(f'{name}: importing checkpoint with changed global batch; exact trajectory is not preserved',flush=True)
     train=store_for(manifest,'train',config['cache_samples'])
     if position<0 or position>len(train):raise ValueError('Invalid checkpoint sample position')
+    affinity=config.get('sampler')=='geometry_affinity'
+    geometry_keys=None;sampling_records=[]
+    if affinity:
+        packet=[None]
+        if rank==0:
+            try:
+                geometry_keys=saved.get('geometry_keys') if saved else None
+                if geometry_keys is None:geometry_keys=registered_geometry_keys(manifest,progress=print)
+                if len(geometry_keys)!=len(train) or not all(isinstance(key,str) and key for key in geometry_keys):raise ValueError('Invalid geometry index')
+                packet[0]={'keys':geometry_keys}
+            except Exception as error:packet[0]={'error':str(error)}
+        dist.broadcast_object_list(packet,src=0)
+        if 'error' in packet[0]:raise ValueError(packet[0]['error'])
+        geometry_keys=packet[0]['keys']
+        if saved and saved.get('sampling_schema')!=SAMPLING_SCHEMA:raise ValueError('Sampling schema changed')
+        owners=geometry_owners(geometry_keys,world,config['seed'])
+        if rank==0:
+            atomic_json({'schema':'geometry-affinity-v1','dataset_signature':manifest['signature'],'world_size':world,
+                'preferred_owners':owners,'train_geometry_keys':geometry_keys,
+                'note':'Preferred ranks with work stealing; no duplicate or dropped samples'},folder/'geometry_affinity.json')
+            print(f'{name}: geometry affinity enabled; geometries={len(set(geometry_keys))}; within-geometry case order shuffled each epoch')
     interval=log_every()
     timing=DistributedTiming(folder,device)
     query_trace=GeoQueryTrace(model)
@@ -191,12 +213,14 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         if rank==0:atomic_json({'state':state,'model':name,'completed_epochs':epoch,'global_step':global_step,
                                'position':position,'world_size':world,'scope':manifest['scope'],**extra},folder/'status.json')
     def save(path):
+        if affinity:append_records(folder,rank,sampling_records)
         timing_start=timing.begin()
         states=[None]*world;dist.all_gather_object(states,local_rng(device))
         if rank==0:
             checkpoint={'format_version':FORMAT_VERSION,'model':name,'state_dict':model.state_dict(),
                 'optimizer_state_dict':optimizer.state_dict(),'scheduler_state_dict':scheduler.state_dict(),
                 'normalization':vars(norm),'config':config,'manifest':manifest,'fields':list(FIELDS),
+                **({'geometry_keys':geometry_keys,'sampling_schema':'geometry-affinity-v1'} if affinity else {}),
                 'completed_epochs':epoch,'position':position,'global_step':global_step,'best_score':best,
                 'early_stopping_counter':bad,'history':history,'pending_loss_sum':pending_sum,'pending_elements':pending_count,
                 'rng_state':states[0],'training_seconds':elapsed+time.perf_counter()-started,
@@ -225,6 +249,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('training');save(last_path)
         while epoch<config['epochs'] and bad<config['patience']:
             order=torch.randperm(len(train),generator=torch.Generator().manual_seed(config['seed']+epoch)).tolist()
+            batches=(geometry_batches(geometry_keys,world,config['seed'],epoch) if affinity else
+                     [order[start:start+world]+[None]*max(0,start+world-len(order)) for start in range(0,len(order),world)])
             while position<len(order):
                 if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
                 model.train()
@@ -234,12 +260,14 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 query_trace.reset(profiling)
                 source=None
                 phase_times={};phase_start=timing.begin(profiling);profile_start=phase_start
-                end=min(position+world,len(order));batch_cases=end-position;active=position+rank<end
+                end=min(position+world,len(order));batch_cases=end-position
+                batch=batches[position//world];sample_index=batch[rank];active=sample_index is not None
+                before_queries=query_counts(model) if affinity else None
                 batch_rng=local_rng(device) if manual else None;aborted=False
-                global_elements=sum(manifest['splits']['train'][order[i]]['nodes']*6 for i in range(position,end))
+                global_elements=sum(manifest['splits']['train'][index]['nodes']*6 for index in batch if index is not None)
                 if active:
-                    sample=train[order[position+rank]];elements=sample['targets'].size
-                    source=train.paths[order[position+rank]]
+                    sample=train[sample_index];elements=sample['targets'].size
+                    source=train.paths[sample_index]
                     phase_start=timing.mark(phase_times,'load_sample',phase_start)
                     if manual and name in ('GCN','Graph_Transformer'):
                         value=model.graph_executor.backward_sample(model,norm,sample,device,
@@ -292,6 +320,13 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 if active:del sample
                 if rank==0 and should_log(math.ceil(position/world),math.ceil(len(train)/world),interval):
                     print(f'{name} DDP epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/world)}/{math.ceil(len(train)/world)} step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
+                if affinity:
+                    after_queries=query_counts(model)
+                    sampling_records.append({'step':global_step,'epoch':epoch+1,'rank':rank,'active':active,
+                        'sample_index':sample_index,'source':source,
+                        'geometry_key':geometry_keys[sample_index] if active else None,
+                        'preferred_owner':owners[geometry_keys[sample_index]] if active else None,
+                        'cache_delta':{key:after_queries[key]-before_queries[key] for key in after_queries}})
                 if profiling:
                     phase_start=timing.mark(phase_times,'bookkeeping',phase_start)
                     phase_times['step_total']=phase_start-profile_start
@@ -334,5 +369,6 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('complete',best_epoch=best_saved['completed_epochs']);dist.barrier()
         return report
     finally:
+        if affinity:append_records(folder,rank,sampling_records)
         query_trace.__exit__()
         for number,handler in handlers.items():signal.signal(number,handler)

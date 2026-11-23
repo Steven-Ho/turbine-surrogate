@@ -13,6 +13,7 @@ from tfai.benchmarks.fann_ddp import train_ddp,SUPPORTED
 
 def main():
     parser=build_parser()
+    parser.add_argument('--sampler',choices=['random','geometry_affinity'],default=os.environ.get('FANN_DDP_SAMPLER','random'))
     parser.add_argument('--backend',default=os.environ.get('FANN_DDP_BACKEND','nccl'))
     parser.add_argument('--timeout-minutes',type=int,default=120)
     parser.add_argument('--checkpoint-every',type=int,default=10)

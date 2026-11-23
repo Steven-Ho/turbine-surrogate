@@ -272,8 +272,13 @@ def evaluate(model,norm,store,device,output=None,near_wall=0.001,stop_requested=
 
 
 def assert_resume_config(old,new):
+    old=dict(old)
+    # Accept graph checkpoints written with an accidental tuple configuration key.
+    for key in list(old):
+        if isinstance(key,tuple) and key and key[0]=='graph_execution_schema':
+            old.setdefault('graph_execution_schema',old.pop(key))
     immutable=['seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
-               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema','amp']
+               'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema','amp','sampler']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))
 
@@ -289,13 +294,15 @@ def train_one(name,manifest,config,folder,device,resume=False,max_updates=None):
 
 def execution_config(name,config):
     config=dict(config)
+    if config.get('sampler','random')=='random':config.pop('sampler',None)
+    elif config['sampler']!='geometry_affinity' or name!='GeoTransolver':raise ValueError('Geometry affinity currently supports GeoTransolver DDP only')
     if config.get('amp','off')=='off':config.pop('amp',None)
     elif config['amp']!='bf16' or name!='GeoTransolver':raise ValueError('BF16 AMP currently supports GeoTransolver only')
     if name not in GRAPH_MODELS:
         config={key:value for key,value in config.items() if not key.startswith('graph_')}
     if name in GRAPH_MODELS and config.get('graph_execution','dense')=='bounded':
         from .fann_graph_execution import SCHEMA as graph_schema
-        config['graph_execution_schema','amp']=graph_schema
+        config['graph_execution_schema']=graph_schema
     if name=='GeoTransolver':
         from tfai.models._vendor.geotransolver2.spatial_neighbors import SCHEMA
         config['geo_neighbor_policy']={'schema':SCHEMA,'backend':os.environ.get('TURBINE_GEO_QUERY_BACKEND','kdtree'),
