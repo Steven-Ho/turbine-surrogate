@@ -22,6 +22,8 @@ class TimingTests(unittest.TestCase):
                     self.assertGreaterEqual(stats['min'],0)
                     self.assertLessEqual(stats['min'],stats['mean'])
                     self.assertLessEqual(stats['mean'],stats['max'])
+            self.assertIn('source',steps[0]['ranks'][0])
+            self.assertTrue(steps[0]['ranks'][0]['geo']['queries'])
             active=steps[0]['ranks'][0]['seconds']
             for key in ['load_sample','prepare_input','forward','target_loss_or_idle','loss_collectives','backward_with_ddp_sync','clip_optimizer','step_total']:
                 self.assertIn(key,active)

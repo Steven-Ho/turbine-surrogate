@@ -675,3 +675,29 @@ rank0打印带时间戳的DDP timing日志，并在结果模型目录追加 `tim
 checkpoint事件包含RNG收集、rank0序列化写盘及各rank屏障等待；evaluation事件包含该rank的加载/推理/指标统计及最终集体通信，最终评估还包含预测写盘。step_total不包含后续性能报告收集和检查点；它包含本步常规日志及记账开销。不同阶段的最大值不能相加冒充某一rank总耗时，使用step_total的max判断慢rank。
 
 计时会在阶段边界同步GPU，并额外收集各rank记录，可能改变流水重叠和吞吐，仅用于诊断。20步后的常规训练不再添加batch阶段同步；若仍开启计时，后续检查点/验证事件继续记录。正式吞吐复测应 `unset FANN_PROFILE_STEPS`，正式完整训练还需 `unset FANN_MAX_UPDATES`。CPU路径已验证，X203性能须集群实测。
+
+
+## Geo：区分算例、缓存、节点和CPU卸载差异
+
+```bash
+git pull
+bash scripts/submit_fann_geo_diagnostics.sh
+```
+
+提交两个串行依赖的独立诊断作业，覆盖以下三组配置，避免作业间相互争抢资源：
+
+1. 双节点×8卡，BF16、CPU卸载开启。每个rank固定权重执行10次前向/反向：节点0按A/A/B/B/A、节点1按B/B/A/A/B，再交换两节点分配重复。没有优化器更新，不写训练检查点。
+2. 单节点单卡、卸载开启，执行A/A/B/B/A。
+3. 在第2项同一作业、同一节点与GPU分配中启动新进程，关闭卸载，执行相同序列。仅最后这项可能因完整激活超出显存而OOM，错误写入该诊断目录及Slurm日志，不影响训练结果。
+
+默认自动从训练集中选取坐标确实不同的两个算例，A从第0例开始。可设置FANN_DIAG_CASE_A和FANN_DIAG_CASE_B指定训练集索引。选择过程只比较坐标，不以目标场难易选择样本。GPU查询缓存按既有目录读取，不清除磁盘或OS缓存；每次清空SampleStore的单样本LRU，使各步都测量样本读取。A/A用于观察立即重复的几何设备缓存，最后返回A用于观察淘汰和重读。
+
+默认新建 `runs/fann_geo_diag_suite_时间/`，各子目录包含protocol.json、completion.json、timings.jsonl和summary.csv；失败时记录failure_rank_编号.json。Slurm输出在logs/fann_geo_diag_作业号.out/.err。completion.json校验运行前后参数SHA256完全一致；诊断不改变原训练权重或优化器。CSV列出每个rank的样本、节点、loss、加载/前向/反向耗时、邻域查询耗时、缓存命中/构建次数及显存/主存。
+
+可先设置 `export FANN_DIAG_CHECKPOINT=原结果目录/GeoTransolver/last.pt`。诊断从该只读检查点获取数据清单、归一化、架构和参数，显式使用既有数据、不执行启动全库登记；BF16与卸载设置由诊断参数控制。未指定检查点则使用既有启动登记及seed42初始化，登记失效时仍可能全量扫描。检查点应与当前准备数据匹配。不要将FANN_DIAG_ROOT设为已有结果目录。
+
+单卡开启/关闭卸载在同一Slurm分配中顺序执行，使用独立进程和独立结果子目录，避免比较时更换节点；第二次执行仍可能受OS/磁盘热缓存影响，应比较序列中的重复步骤。套件脚本末尾可传partition等公共参数，不要传nodes/gres等覆盖实验设计的资源参数。
+
+训练自身也已补充跟踪：开启FANN_PROFILE_STEPS后，train_step各rank明细记录source、geo.queries及host_RSS_GiB。queries包含module、radius、邻居数、完整几何缓存键、各级缓存命中、构建次数、缓存get耗时和构建/写盘耗时。query总时间还包含坐标传回CPU、哈希、索引转换/传输和设备缓存相等检查，不能直接等同磁盘读时间。forward_query_seconds是forward的子集，不应重复相加。backward中的重计算查询另行标记。
+
+判读：慢速跟着样本/几何走，查缓存与几何；跟着节点走，查节点资源；A首次慢、立即重复快，查缓存；16进程很慢、单进程快，查资源争用；卸载关闭且显存可容纳时明显变快，查CPU卸载路径。计时含GPU同步开销，最终吞吐仍需关闭诊断后测量。固定序列可能放大共享缓存争用，是诊断压力测试，不等同随机训练吞吐。

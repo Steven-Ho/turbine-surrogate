@@ -1,0 +1,29 @@
+{
+  "validation": "CPU only; GPUs hidden after user reverted authorization",
+  "tests": [
+    {
+      "count": 4,
+      "result": "passed",
+      "log": "/tmp/fann_geo_diagnostic_final_tests.log",
+      "scope": "fixed-weight BF16 two-process repetitions, both offload arguments, parameter hash identity, query trace restoration, regular DDP timing and FP32 gradient reference"
+    },
+    {
+      "count": 1,
+      "result": "passed",
+      "log": "/tmp/fann_geo_diagnostic_submit_test.log",
+      "scope": "mock Slurm submit: sequential dependencies and single-allocation offload comparison"
+    }
+  ],
+  "limitations": [
+    "CPU does not exercise actual GPU save_on_cpu transfers",
+    "No X203 or full-size diagnostic job submitted locally",
+    "GPU performance and offload-off capacity await cluster run"
+  ],
+  "outputs": [
+    "protocol.json",
+    "completion.json",
+    "timings.jsonl",
+    "summary.csv",
+    "failure_rank_N.json on error"
+  ]
+}

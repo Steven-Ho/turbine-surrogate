@@ -21,6 +21,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch_geometric.data import Data
 from .fann_timing import DistributedTiming
+from .fann_geo_diagnostics import GeoQueryTrace
 from .fann import FIELDS,Normalizer
 from .fann_training import (FORMAT_VERSION,RunLockedError,assert_resume_config,atomic_json,
                            build_model,evaluate,file_hash,prepare_input,store_for,execution_config,GRAPH_MODELS)
@@ -178,6 +179,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     if position<0 or position>len(train):raise ValueError('Invalid checkpoint sample position')
     interval=log_every()
     timing=DistributedTiming(folder,device)
+    query_trace=GeoQueryTrace(model)
+    if timing.limit and name=='GeoTransolver':query_trace.__enter__()
     stop_local=False;updates=0;started=time.perf_counter();handlers={};finalizing=False
     def request_stop(_signal,_frame):
         nonlocal stop_local
@@ -228,12 +231,15 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 if ddp is not None:ddp.train()
                 optimizer.zero_grad(set_to_none=True);step_start=time.perf_counter()
                 profiling=updates<timing.limit
+                query_trace.reset(profiling)
+                source=None
                 phase_times={};phase_start=timing.begin(profiling);profile_start=phase_start
                 end=min(position+world,len(order));batch_cases=end-position;active=position+rank<end
                 batch_rng=local_rng(device) if manual else None;aborted=False
                 global_elements=sum(manifest['splits']['train'][order[i]]['nodes']*6 for i in range(position,end))
                 if active:
                     sample=train[order[position+rank]];elements=sample['targets'].size
+                    source=train.paths[order[position+rank]]
                     phase_start=timing.mark(phase_times,'load_sample',phase_start)
                     if manual and name in ('GCN','Graph_Transformer'):
                         value=model.graph_executor.backward_sample(model,norm,sample,device,
@@ -268,6 +274,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 if bad_loss.item():raise ValueError('Nonfinite DDP training loss')
                 dist.all_reduce(aggregate)
                 phase_start=timing.mark(phase_times,'loss_collectives',phase_start)
+                query_trace.phase='backward'
                 if not (manual and name in ('GCN','Graph_Transformer')):
                     loss=squared*(world/aggregate[1])
                     if active or not manual:loss.backward()
@@ -288,7 +295,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 if profiling:
                     phase_start=timing.mark(phase_times,'bookkeeping',phase_start)
                     phase_times['step_total']=phase_start-profile_start
-                    timing.emit('train_step',phase_times,step=global_step,epoch=epoch+1,active=active,batch_cases=batch_cases)
+                    timing.emit('train_step',phase_times,step=global_step,epoch=epoch+1,active=active,batch_cases=batch_cases,source=source,geo=query_trace.report())
                 if updates%checkpoint_every==0:save(last_path);status('training')
             if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
             metrics=timed_evaluate('valid')
@@ -327,4 +334,5 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('complete',best_epoch=best_saved['completed_epochs']);dist.barrier()
         return report
     finally:
+        query_trace.__exit__()
         for number,handler in handlers.items():signal.signal(number,handler)
