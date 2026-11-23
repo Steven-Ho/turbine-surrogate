@@ -744,3 +744,19 @@ bash scripts/submit_fann_geo_affinity.sh
 已有几何索引直接读取；不存在时会首次读取各样本坐标建立索引，不读取目标场作几何分组。几何键和采样schema进入检查点，支持同一world_size下的中断精确恢复；不允许把随机采样检查点作为几何模式精确续训。更换world_size会重分配优先rank，延用原有非精确轨迹提示。恢复本实验仍使用slurm_fann_ddp.sh并显式设置原FANN_RUN_ROOT、FANN_RESUME=1、FANN_AMP=bf16、FANN_DDP_SAMPLER=geometry_affinity、TURBINE_GEO_ACTIVATION_OFFLOAD=0及匹配缓存配置。
 
 本地仅做CPU验证：不重不漏、批次数与负载平衡、极端几何组、调度可重现、BF16两进程短尾训练、中断前后参数/优化器/调度器一致，以及原随机模式梯度参考。集群收益需以实际batch耗时和sampling记录判定。
+
+
+## 单节点8卡吞吐对照
+
+```bash
+git pull
+bash scripts/submit_fann_geo_single_node.sh
+```
+
+固定单节点8卡、BF16、CPU卸载关闭、随机采样、512MiB/模块/进程的CPU LRU、32768节点分块、4 CPU线程/进程；保留梯度重计算，每节点仍申请32 CPU、768G主存。脚本显式覆盖可能残留的几何采样、4GiB缓存、诊断计时和resume设置。独立结果目录为 `runs/fann_geo_bf16_no_offload_1node_时间/GeoTransolver/`；可用FANN_SINGLE_NODE_RUN_ROOT指定新目录。
+
+默认40步：250例、8卡时一轮32步，40步处理250+64=314例，与1964的16卡20步相同，并都完成一次验证。开始状态均为seed42新模型，但全局batch从16变为8，优化器更新数不同，不应比较逐步loss是否相等。维持原学习率不自动缩放。比较每秒算例数、同314例的总墙钟时间及GPU资源消耗，不能只比较epoch步数。
+
+若只做更短测试，可设置FANN_SINGLE_NODE_MAX_UPDATES=20，此时只训练160例，尚未完成一轮，不能与双节点20步的总时间直接比较。启动日志应显示world_size=8、amp=bf16、geo_activation_offload=False、geo_node_chunk=32768，并且不出现geometry affinity enabled。
+
+判断扩展：设单节点稳定步骤平均t8、双节点平均t16，则吞吐扩展比约2*t8/t16，双节点相对线性扩展效率约t8/t16；尾批、验证和保存时间另外计入总工期。最终是否值得增加节点，应兼顾工期和GPU小时。缓存/节点运行状态仍可能不同，必要时重复对照。
