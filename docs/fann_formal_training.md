@@ -701,3 +701,26 @@ bash scripts/submit_fann_geo_diagnostics.sh
 训练自身也已补充跟踪：开启FANN_PROFILE_STEPS后，train_step各rank明细记录source、geo.queries及host_RSS_GiB。queries包含module、radius、邻居数、完整几何缓存键、各级缓存命中、构建次数、缓存get耗时和构建/写盘耗时。query总时间还包含坐标传回CPU、哈希、索引转换/传输和设备缓存相等检查，不能直接等同磁盘读时间。forward_query_seconds是forward的子集，不应重复相加。backward中的重计算查询另行标记。
 
 判读：慢速跟着样本/几何走，查缓存与几何；跟着节点走，查节点资源；A首次慢、立即重复快，查缓存；16进程很慢、单进程快，查资源争用；卸载关闭且显存可容纳时明显变快，查CPU卸载路径。计时含GPU同步开销，最终吞吐仍需关闭诊断后测量。固定序列可能放大共享缓存争用，是诊断压力测试，不等同随机训练吞吐。
+
+
+## 关闭CPU卸载的2节点BF16基线
+
+```bash
+git pull
+bash scripts/submit_fann_geo_no_offload.sh
+```
+
+固定GeoTransolver small、BF16、2节点×8卡、节点块32768、CPU激活卸载关闭；仍保留原有梯度重计算与磁盘缓存策略，每节点32 CPU、768G主存。默认新开独立结果目录 `runs/fann_geo_bf16_no_offload_2nodes_时间/GeoTransolver/`，忽略可能残留的FANN_RUN_ROOT；可用FANN_BASELINE_RUN_ROOT指定新的独立目录。保留既定FANN_SPLITS。
+
+默认只做20次全局真实训练更新：250个训练算例、16卡时，为完整1轮含验证加第2轮4个batch，随后保存last.pt安全停止。启动日志应显示amp=bf16、geo_activation_offload=False、geo_node_chunk=32768。无需重新预计算缓存。
+
+该基线强制关闭FANN_PROFILE_STEPS和TURBINE_FANN_PROFILE_STEPS，避免诊断同步开销影响吞吐；仍逐batch打印时间戳、loss及rank0_seconds，结束汇报各rank显存和主存峰值。原生DDP通信与反向仍正常执行。主存申请暂保持不变，以便只改变卸载设置。
+
+若20步无OOM且性能稳定，再用新目录运行完整预算：
+
+```bash
+export FANN_BASELINE_MAX_UPDATES=""
+bash scripts/submit_fann_geo_no_offload.sh
+```
+
+本脚本是新开训练入口；续训已保存的无卸载基线时用原slurm_fann_ddp.sh，设置对应FANN_RUN_ROOT、FANN_RESUME=1、FANN_AMP=bf16、TURBINE_GEO_ACTIVATION_OFFLOAD=0、TURBINE_GEO_NODE_CHUNK=32768，并取消FANN_MAX_UPDATES/FANN_PROFILE_STEPS。不要直接用本入口续训，因为它通过AMP提交器固定新开模式。单卡两例无卸载诊断可运行不保证所有训练算例均不OOM，先以此20步基线确认容量。

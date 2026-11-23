@@ -221,7 +221,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('interrupted')
         return {'state':'interrupted','global_step':global_step,'world_size':world}
     try:
-        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}',flush=True)
+        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
         status('training');save(last_path)
         while epoch<config['epochs'] and bad<config['patience']:
             order=torch.randperm(len(train),generator=torch.Generator().manual_seed(config['seed']+epoch)).tolist()
