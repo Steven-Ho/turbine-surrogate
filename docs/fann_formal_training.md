@@ -780,3 +780,25 @@ bash scripts/submit_fann_geo_scaling.sh
 相对加速比=该卡数cases/s÷单卡cases/s；效率=加速比÷卡数。若4/8卡吞吐明显偏离线性，应结合console.log中的主存/显存峰值检查节点内争用和DDP；该实验本身不把纯GPU计算与通信分离。后运行的配置可能受益于OS文件缓存，同一节点也可能存在其他资源负载，必要时重复或用Python入口 --gpu-counts 8 4 2 1反序验证（保持预算满足整除）。此脚本默认关闭同步阶段诊断，避免计时改变重叠行为。
 
 CPU小样例已验证1/2进程预算与报告逻辑；未在本机运行GPU诊断。集群实测后提供summary.csv、report.json和Slurm .out即可比较扩展效率。
+
+
+## 四节点并行扩展诊断
+
+```bash
+git pull
+bash scripts/submit_fann_geo_scaling_parallel.sh
+```
+
+无依赖提交四个独立作业，每个申请一个独占8卡节点，在其中分别启动1、2、4、8个训练进程。其余卡保持空闲，以隔离同节点CPU/GPU资源争用；因此占用四个8卡节点，实际15卡参与训练。资源充足时各组并发，整体工期接近最慢一组；排队时间另计。原同节点顺序入口保持不变。
+
+预热/计量预算和训练设置与顺序版相同，默认16例预热+64例计量。提交器创建独立 `runs/fann_geo_scaling_parallel_时间/`，jobs.tsv记录卡数和作业号，parts/1gpu、2gpu、4gpu、8gpu分别保存该组report.json和内部gpus_卡数训练目录。FANN_SCALING_PARALLEL_ROOT可指定新的套件目录，不允许覆盖。
+
+完成后在项目根目录汇总（仅标准库，可在登录节点执行）：
+
+```bash
+python3 scripts/summarize_fann_geo_scaling_parallel.py --root runs/fann_geo_scaling_parallel_实际时间
+```
+
+生成顶层summary.csv和report.json，重算相对单卡加速比与扩展效率。可在部分完成时运行，状态会标为incomplete并列出尚未完成的卡数。汇总检查数据签名、预热/计量预算、Torch版本及GPU型号一致，拒绝混合不一致结果。失败组请查看对应日志，汇总不会把未完成组当成成功。
+
+独占节点避免组间CPU/GPU争用，但不同节点性能可能不同，共享存储仍有并发读压力，不能将并行版所有差异都解释为纯计算扩展。报告保留host、gpu_name、job_id，必要时以原同节点顺序版复核。公共partition等参数可追加到提交器，不要覆盖exclusive、gres、nodes等隔离资源设置。

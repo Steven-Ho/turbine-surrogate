@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import statistics
+import socket
 import subprocess
 import sys
 import time
@@ -43,6 +44,8 @@ def main():
     args.output.mkdir(parents=True,exist_ok=False)
     report={'state':'running','device':args.device,'gpu_counts':args.gpu_counts,'warmup_cases':args.warmup_cases,
             'measure_cases':args.measure_cases,'results':[],'torch_version':torch.__version__,
+            'host':socket.gethostname(),'job_id':os.environ.get('SLURM_JOB_ID'),
+            'gpu_name':torch.cuda.get_device_name(0) if args.device=='cuda' else None,
             'note':'Same shuffled case prefix, seed42 fresh runs; global batch and optimizer trajectory differ. Later runs may benefit from OS file cache.'}
     write_report(args.output,report)
     try:

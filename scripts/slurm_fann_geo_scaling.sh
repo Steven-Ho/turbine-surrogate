@@ -18,7 +18,8 @@ export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}" PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4
 export TURBINE_GEO_CACHE_DIR="${TURBINE_GEO_CACHE_DIR:-$PWD/runs/fann_neighbor_cache}"
 output="${FANN_SCALING_OUTPUT:-runs/fann_geo_scaling_${SLURM_JOB_ID}}"
-printf 'Single-node scaling suite: sequential 1/2/4/8 GPUs, output=%s\n' "$output"
+read -r -a counts <<< "${FANN_SCALING_COUNTS:-1 2 4 8}"
+printf 'Single-node scaling: process_counts=%s output=%s\n' "${counts[*]}" "$output"
 srun --export=ALL --ntasks=1 --kill-on-bad-exit=1 \
  python scripts/run_fann_geo_scaling.py --splits "$FANN_SPLITS" --output "$output" \
- --warmup-cases "${FANN_SCALING_WARMUP_CASES:-16}" --measure-cases "${FANN_SCALING_MEASURE_CASES:-64}"
+ --gpu-counts "${counts[@]}" --warmup-cases "${FANN_SCALING_WARMUP_CASES:-16}" --measure-cases "${FANN_SCALING_MEASURE_CASES:-64}"
