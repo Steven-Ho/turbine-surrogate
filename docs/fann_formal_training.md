@@ -880,3 +880,23 @@ sbatch --exclusive scripts/slurm_fann_allreduce.sh
 ```
 
 已用阻断tfai/VTK/PyVista导入的子进程测试及CPU双rank AllReduce验证。该错误不提供网络性能结论，原1974尚未执行到通信微基准。
+
+
+## 独占16卡五轮稳定性验证
+
+```bash
+git pull
+bash scripts/submit_fann_geo_stability.sh
+```
+
+固定1973已跑快的条件：独占2节点×8卡、每节点32 CPU/768G主存、BF16、CPU卸载关闭、随机采样、512MiB CPU邻域缓存、32768节点块、OpenMP/MKL/OpenBLAS各4线程。默认interop不覆盖。脚本主动取消旧max-updates、几何采样、调试日志及同步阶段计时，避免继承此前短测设置。独占不保证特定CPU编号；启动/结束快照用于检查实际分配。
+
+默认完整训练并验证5轮，250例/16卡时约80次更新；可在提交前设置 `FANN_STABILITY_EPOCHS=10`。到达预算后保存last.pt，status.json标记interrupted、stop_reason=epoch_budget，torchrun正常退出0。这是计划停止，非异常。最终测试集评估和预测导出推迟，避免给稳定性试验增加全场写盘开销。
+
+检查点中的epochs仍为400；FANN_MAX_EPOCHS_PER_RUN只控制本次启动新增的完整轮数，不改变模型、优化器或调度器。数据路径沿用既定FANN_SPLITS，默认输出独立 `runs/fann_geo_stability_时间/GeoTransolver/`；FANN_STABILITY_RUN_ROOT可指定新目录。日志为logs/fann_geo_stability_作业号_6.out/.err。
+
+runtime/保存逐rank的initialized/completed资源快照，无需启用通信调试；不会在每步额外同步GPU。history.json保存每轮训练/验证指标，last.pt/best.pt均可继续使用。CPU已验证预算包含完整验证、无最终测试输出、资源快照不启用NCCL/MCCL调试，并验证中断续训与连续训练权重相同。
+
+恢复到400轮时，用原slurm_fann_ddp.sh，设置原FANN_RUN_ROOT、FANN_RESUME=1、FANN_EPOCHS=400、FANN_AMP=bf16、FANN_DDP_SAMPLER=random、TURBINE_GEO_ACTIVATION_OFFLOAD=0、TURBINE_GEO_NODE_CHUNK=32768、TURBINE_GEO_MEMORY_CACHE_MB=512及MKL/OpenBLAS/OMP各4；取消FANN_MAX_EPOCHS_PER_RUN和FANN_MAX_UPDATES，并继续sbatch --exclusive。不要直接重用本新开训练入口续训。
+
+判断稳定性时看每轮实际墙钟耗时、batch长尾、CPU分配和显存/主存峰值，而非只看前几步。尚未确认长期吞吐前，不据短测承诺400轮工期。

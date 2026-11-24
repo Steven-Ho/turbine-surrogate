@@ -1,0 +1,31 @@
+{
+  "scope": "CPU validation, no cluster stability measured locally",
+  "test_run": {
+    "count": 4,
+    "result": "passed",
+    "log": "/tmp/fann_stability_tests.log",
+    "coverage": [
+      "full epoch budget includes validation and saves resumable checkpoint",
+      "final test export deferred at run budget",
+      "resource snapshots without communication debug",
+      "exact weights/history after epoch-budget resume",
+      "mock exclusive submission clears stale experiment flags",
+      "logger compatibility"
+    ]
+  },
+  "cluster_defaults": {
+    "nodes": 2,
+    "gpus_per_node": 8,
+    "exclusive": true,
+    "full_epochs_this_run": 5,
+    "checkpoint_total_epochs": 400,
+    "amp": "bf16",
+    "CPU_offload": false,
+    "sampler": "random",
+    "cache_MiB": 512,
+    "node_chunk": 32768,
+    "intraop_threads": 4,
+    "interop": "default",
+    "synchronized_profiling": false
+  }
+}

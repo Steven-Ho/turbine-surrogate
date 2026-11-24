@@ -38,10 +38,12 @@ def main():
         torch.cuda.set_device(local_rank);device=torch.device('cuda',local_rank)
     else:device=torch.device('cpu')
     communication_root=setup_debug()
+    runtime_root=Path(os.environ['FANN_RUNTIME_SNAPSHOT_DIR']) if os.environ.get('FANN_RUNTIME_SNAPSHOT_DIR') else communication_root
+    if runtime_root is not None:runtime_root.mkdir(parents=True,exist_ok=True)
     dist.init_process_group(args.backend,timeout=timedelta(minutes=args.timeout_minutes))
     rank=dist.get_rank()
     try:
-        snapshot(communication_root,device,'initialized')
+        snapshot(runtime_root,device,'initialized')
         packet=[None]
         if rank==0:
             try:
@@ -58,7 +60,7 @@ def main():
         name=args.models[0]
         result=train_ddp(name,packet[0]['manifest'],config,args.output/name,device,args.resume,args.max_updates,
                          args.checkpoint_every,args.stop_file)
-        snapshot(communication_root,device,'completed')
+        snapshot(runtime_root,device,'completed')
         import resource,socket
         capacity={'rank':rank,'host':socket.gethostname(),'device':str(device),
                   'gpu_peak_GiB':torch.cuda.max_memory_allocated(device)/2**30 if device.type=='cuda' else None,

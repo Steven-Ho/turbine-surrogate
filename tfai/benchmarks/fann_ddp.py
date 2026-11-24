@@ -178,6 +178,9 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
             if rank==0:print(f'{name}: importing checkpoint with changed global batch; exact trajectory is not preserved',flush=True)
     train=store_for(manifest,'train',config['cache_samples'])
     if position<0 or position>len(train):raise ValueError('Invalid checkpoint sample position')
+    epoch_budget=int(os.environ.get('FANN_MAX_EPOCHS_PER_RUN','0'))
+    if epoch_budget<0:raise ValueError('FANN_MAX_EPOCHS_PER_RUN must be nonnegative')
+    initial_epoch=epoch
     affinity=config.get('sampler')=='geometry_affinity'
     geometry_keys=None;sampling_records=[]
     if affinity:
@@ -240,10 +243,11 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         phases={};timing.mark(phases,'evaluation_total',timing_start)
         timing.emit('evaluation',phases,step=global_step,epoch=epoch,split=split,write_predictions=output is not None)
         return result
-    def interrupted():
+    def interrupted(reason=None):
         if not finalizing:save(last_path)
-        status('interrupted')
-        return {'state':'interrupted','global_step':global_step,'world_size':world}
+        extra={'stop_reason':reason} if reason else {}
+        status('interrupted',**extra)
+        return {'state':'interrupted','global_step':global_step,'world_size':world,**extra}
     try:
         if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
         status('training');save(last_path)
@@ -348,6 +352,9 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 atomic_json(history,folder/'history.json')
                 print(f'{name} DDP epoch={epoch}/{config["epochs"]} step={global_step} train={history[-1]["train_loss"]:.7g} val={value:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} bad={bad}/{config["patience"]}',flush=True)
             status('training',best_validation_loss=best,lr=optimizer.param_groups[0]['lr'])
+            if epoch_budget and epoch-initial_epoch>=epoch_budget:
+                if rank==0:print(f'{name}: completed {epoch_budget} full epochs this run; saving for resume, final test evaluation deferred')
+                return interrupted('epoch_budget')
         training_seconds=elapsed+time.perf_counter()-started;finalizing=True
         best_saved=torch.load(best_path,map_location='cpu',weights_only=False);model.load_state_dict(best_saved['state_dict'],strict=True)
         status('evaluating',best_epoch=best_saved['completed_epochs'])
