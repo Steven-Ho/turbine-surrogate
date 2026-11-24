@@ -1,0 +1,25 @@
+{
+  "scope": "CPU-only, no X203 communication path or throughput measured locally",
+  "tests": {
+    "count": 5,
+    "result": "passed",
+    "log": "/tmp/fann_comm_diagnostic_tests.log",
+    "coverage": [
+      "MCCL/NCCL per-rank logger setup without routing overrides",
+      "bootstrap evidence distinguished from data transport",
+      "two Slurm agents simulated on localhost with real torchrun and timed CPU training",
+      "resource snapshots for both ranks",
+      "unprofiled single-node suite regression"
+    ]
+  },
+  "submission": "mock passed; reference disabled and five-step diagnosis selected",
+  "sources": [
+    "https://developer.metax-tech.com/api/client/document/preview/467/C500_MCCLProgrammingGuide_CN.html",
+    "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html"
+  ],
+  "limitations": [
+    "Library-specific logger support must be verified on cluster",
+    "Backward timing includes compute and overlapped communication",
+    "No automatic RDMA/TCP inference from bootstrap lines"
+  ]
+}

@@ -20,7 +20,10 @@ export TURBINE_GEO_CACHE_DIR="${TURBINE_GEO_CACHE_DIR:-$PWD/runs/fann_neighbor_c
 mapfile -t scaling_hosts < <(scontrol show hostnames "$SLURM_JOB_NODELIST")
 output="${FANN_SCALING_2NODE_OUTPUT:-runs/fann_geo_scaling16_${SLURM_JOB_ID}}"
 extra=()
-if [[ -n "${FANN_SCALING_REFERENCE_REPORT:-}" ]]; then extra+=(--reference-report "$FANN_SCALING_REFERENCE_REPORT"); fi
+if [[ "${FANN_SCALING_DIAGNOSTIC:-0}" == 1 ]]; then
+ extra+=(--profile-steps "${FANN_NETWORK_DIAG_STEPS:-5}" --comm-diagnostics)
+fi
+if [[ "${FANN_SCALING_DIAGNOSTIC:-0}" != 1 && -n "${FANN_SCALING_REFERENCE_REPORT:-}" ]]; then extra+=(--reference-report "$FANN_SCALING_REFERENCE_REPORT"); fi
 printf 'Two-node controlled scaling: nodes=2 GPUs/node=8, output=%s\n' "$output"
 # The controller runs in the batch shell; its child srun launches one agent/node.
 # Do not wrap the controller in a one-task srun, which would hold task resources.

@@ -49,11 +49,18 @@ raise SystemExit(max(p.returncode for p in processes))
             output=case.root/'multi'
             result=subprocess.run([sys.executable,'scripts/run_fann_geo_scaling.py','--splits',str(case.split),
                 '--output',str(output),'--nodes','2','--gpu-counts','2','--master-addr','127.0.0.1','--master-port',str(port),
-                '--warmup-cases','2','--measure-cases','2','--threads','1','--device','cpu','--backend','gloo'],
+                '--warmup-cases','2','--measure-cases','2','--threads','1','--device','cpu','--backend','gloo',
+                '--profile-steps','2','--comm-diagnostics'],
                 cwd=ROOT,env=env,capture_output=True,text=True,timeout=150)
             self.assertEqual(result.returncode,0,result.stdout+'\n'+result.stderr)
             report=json.loads((output/'report.json').read_text())
             self.assertEqual(report['state'],'complete')
+            self.assertEqual(report['purpose'],'diagnostic')
+            communication=output/'gpus_2/communication'
+            self.assertEqual(len(list(communication.glob('runtime_*.json'))),4)
+            self.assertTrue((output/'gpus_2/communication_summary.json').is_file())
+            timings=[json.loads(line) for line in (output/'gpus_2/GeoTransolver/timings.jsonl').read_text().splitlines()]
+            self.assertEqual(sum(row['event']=='train_step' for row in timings),2)
             row=report['results'][0]
             self.assertEqual((row['nodes'],row['gpus_per_node'],row['measured_cases']),(2,1,2))
             self.assertIn('DDP world_size=2',result.stdout)

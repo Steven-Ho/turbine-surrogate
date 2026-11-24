@@ -12,6 +12,7 @@ import sys
 import time
 import torch
 from tfai.benchmarks.fann_startup_cache import load_startup
+from tfai.benchmarks.fann_comm_diagnostics import summarize_communication
 from tfai.benchmarks.fann_training import atomic_json
 
 STEP=re.compile(r'GeoTransolver DDP .*? step=(\d+) epoch_cases=\d+/\d+ batch_cases=(\d+) .*?rank0_seconds=([\d.]+)')
@@ -53,12 +54,16 @@ def main():
     parser.add_argument('--master-addr')
     parser.add_argument('--master-port',type=int,default=29500)
     parser.add_argument('--reference-report',type=Path)
+    parser.add_argument('--profile-steps',type=int,default=0)
+    parser.add_argument('--comm-diagnostics',action='store_true')
     parser.add_argument('--warmup-cases',type=int,default=16)
     parser.add_argument('--measure-cases',type=int,default=64)
     parser.add_argument('--threads',type=int,default=4)
     parser.add_argument('--device',choices=['cuda','cpu'],default='cuda')
     parser.add_argument('--backend',default='nccl')
     args=parser.parse_args()
+    if args.profile_steps<0:parser.error('profile-steps must be nonnegative')
+    if args.reference_report and (args.profile_steps or args.comm_diagnostics):parser.error('Diagnostic timings cannot be compared to a throughput reference')
     if not args.gpu_counts or len(set(args.gpu_counts))!=len(args.gpu_counts) or any(p<1 for p in args.gpu_counts):parser.error('Counts must be unique and positive')
     if args.nodes<1 or any(p%args.nodes for p in args.gpu_counts):parser.error('GPU counts must be divisible by node count')
     if args.nodes>1 and not args.master_addr:parser.error('Multi-node launch requires --master-addr')
@@ -66,7 +71,8 @@ def main():
     if any(args.warmup_cases%p or args.measure_cases%p for p in args.gpu_counts):parser.error('Both case budgets must be divisible by every process count')
     if args.device=='cuda' and (not torch.cuda.is_available() or max(args.gpu_counts)//args.nodes>torch.cuda.device_count()):raise RuntimeError('Insufficient visible GPUs; no CPU fallback')
     args.output.mkdir(parents=True,exist_ok=False)
-    report={'state':'running','nodes':args.nodes,'node_list':os.environ.get('SLURM_JOB_NODELIST'),'device':args.device,'gpu_counts':args.gpu_counts,'warmup_cases':args.warmup_cases,
+    report={'state':'running','profile_steps':args.profile_steps,'comm_diagnostics':args.comm_diagnostics,
+            'purpose':'diagnostic' if (args.profile_steps or args.comm_diagnostics) else 'throughput','nodes':args.nodes,'node_list':os.environ.get('SLURM_JOB_NODELIST'),'device':args.device,'gpu_counts':args.gpu_counts,'warmup_cases':args.warmup_cases,
             'measure_cases':args.measure_cases,'results':[],'torch_version':torch.__version__,
             'host':socket.gethostname(),'job_id':os.environ.get('SLURM_JOB_ID'),
             'gpu_name':torch.cuda.get_device_name(0) if args.device=='cuda' else None,
@@ -89,10 +95,15 @@ def main():
             updates=total_cases//count;warm_steps=args.warmup_cases//count
             env=dict(os.environ,PYTHONUNBUFFERED='1',OMP_NUM_THREADS=str(args.threads),
                 MKL_NUM_THREADS=str(args.threads),OPENBLAS_NUM_THREADS=str(args.threads),
-                FANN_DDP_SAMPLER='random',FANN_PROFILE_STEPS='0',TURBINE_FANN_PROFILE_STEPS='0',FANN_LOG_EVERY='1',
+                FANN_DDP_SAMPLER='random',FANN_PROFILE_STEPS=str(args.profile_steps),TURBINE_FANN_PROFILE_STEPS='0',FANN_LOG_EVERY='1',
                 TURBINE_FANN_PIPELINE_GPUS='1',TURBINE_GEO_ACTIVATION_OFFLOAD='0',TURBINE_GEO_NODE_CHUNK='32768',
                 TURBINE_GEO_MEMORY_CACHE_MB='512',TURBINE_GEO_MEMORY_CACHE='32',
                 TURBINE_GEO_QUERY_BACKEND='kdtree',TURBINE_GEO_REFERENCE_MAX_POINTS='0')
+            env.pop('FANN_COMM_DIAGNOSTICS_DIR',None)
+            if args.comm_diagnostics:
+                env['FANN_COMM_DIAGNOSTICS_DIR']=str((folder/'communication').resolve())
+                for prefix in ('NCCL','MCCL'):
+                    env[prefix+'_DEBUG']='INFO';env[prefix+'_DEBUG_SUBSYS']='INIT,NET,GRAPH,ENV'
             training=['scripts/train_fann_ddp.py','--models','GeoTransolver','--splits',str(args.splits),
                 '--output',str(folder),'--device',args.device,'--backend',args.backend,'--amp','bf16',
                 '--sampler','random','--scale','small','--seed','42','--threads',str(args.threads),'--epochs','400',
@@ -118,12 +129,13 @@ def main():
                 finally:
                     if process.poll() is None:process.terminate();process.wait()
             atomic_json(records,folder/'steps.json')
+            communication_summary=summarize_communication(folder) if args.comm_diagnostics else None
             if result:raise RuntimeError(f'{count}-process test failed with exit {result}; see {folder}/console.log')
             measured=[row for row in records if row['measured']]
             if len(records)!=updates or sum(row['cases'] for row in measured)!=args.measure_cases or measure_start is None or measure_end is None:
                 raise RuntimeError('Incomplete or inconsistent training-step records')
             wall=measure_end-measure_start
-            report['results'].append({'gpus':count,'nodes':args.nodes,'gpus_per_node':count//args.nodes,'measured_cases':args.measure_cases,'wall_seconds':wall,
+            report['results'].append({'gpus':count,'nodes':args.nodes,'gpus_per_node':count//args.nodes,'communication_summary':communication_summary,'measured_cases':args.measure_cases,'wall_seconds':wall,
                 'cases_per_second':args.measure_cases/wall,
                 'mean_rank0_seconds':statistics.mean(row['rank0_seconds'] for row in measured),
                 'median_rank0_seconds':statistics.median(row['rank0_seconds'] for row in measured)})

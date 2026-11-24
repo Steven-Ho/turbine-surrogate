@@ -822,3 +822,26 @@ Python控制器直接在batch进程运行，由它启动srun的两个节点代�
 参考报告可省略，届时只报告16卡吞吐，之后手动与1970比较。若提供参考，必须数据签名、预算、Torch版本和GPU型号匹配；report中的speedup_vs_8gpu为16卡吞吐÷参考8卡吞吐，efficiency_vs_8gpu为该加速比÷2。若参考还含1卡结果，也报告相对单卡的总加速比。
 
 默认仅4个计量batch，适合先筛查跨节点退化；更长测量应给单/双节点都设置相同更大预算，并用新单节点报告比较，不能与不同预算的1970自动混算。已在CPU上模拟双Slurm代理、真实torchrun会合与训练，尚未在本机GPU或X203跨节点验证。
+
+
+## 16卡阶段耗时与通信路径诊断
+
+```bash
+git pull
+bash scripts/submit_fann_geo_network_diag.sh
+```
+
+沿用1971的2节点×8卡、BF16、关闭CPU卸载、512MiB缓存、32768节点块、4线程设置，16例预热+64例计量，共5步。新脚本为这5步开启FANN_PROFILE_STEPS，并启用通信日志。输出默认 `runs/fann_geo_network_diag_时间/`；FANN_NETWORK_DIAG_OUTPUT可指定新目录。启动器忽略旧参考报告，避免把有同步/日志开销的诊断结果与1970无诊断吞吐直接算加速比；report的purpose标记为diagnostic。
+
+请收集整个结果目录，重点文件：
+
+- gpus_16/GeoTransolver/timings.jsonl：各rank加载、输入准备、前向、损失归约、反向/DDP同步等耗时，以及Geo邻域缓存记录。
+- gpus_16/communication/：按rank、主机和PID区分的mccl/nccl日志及initialized/completed运行时JSON快照。
+- gpus_16/communication_summary.json：筛出的网络/拓扑证据行和独立bootstrap证据行，保留完整原始文件供复核。
+- 顶层report.json、gpus_16/console.log及logs/fann_geo_network_diag_作业号.out/.err。
+
+在每个worker的进程组初始化前设置MCCL_DEBUG/NCCL_DEBUG=INFO、DEBUG_SUBSYS=INIT,NET,GRAPH,ENV，文件名由worker直接生成，不依赖%h/%p替换规则。日志开关依据[沐曦MCCL编程指南](https://developer.metax-tech.com/api/client/document/preview/467/C500_MCCLProgrammingGuide_CN.html)和[NCCL环境变量说明](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html)。仅改变诊断开关，不强制IB、Socket、HCA、GDR或算法设置。不同厂商版本可能仅响应其中一组变量，缺少某一类日志不直接说明通信后端未使用该库。
+
+快照记录实际主机/设备、主线程和最多128个线程的CPU亲和性、线程数、网络设备/IB端口状态、关键通信与启动环境变量、/proc/self/maps中的通信库路径。框架backend显示nccl可能仍由厂商MCCL实现，需结合已加载库和日志判读。bootstrap使用Socket不代表训练数据走Socket；网络设备存在/端口UP也不证明被选用，汇总不自动作RDMA/TCP结论。
+
+若额外耗时集中在前向/加载，优先查节点资源、缓存与CPU绑定；集中在backward_with_ddp_sync时，再做通信微基准。该阶段仍包含反向计算和与通信重叠的等待，不能直接当成纯AllReduce时间。CPU上已模拟双Slurm代理、真实torchrun及阶段采集验证；X203网络选择和性能须集群实测。
