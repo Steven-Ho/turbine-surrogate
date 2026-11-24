@@ -161,7 +161,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         for parameter in model.parameters():dist.broadcast(parameter.data,src=0)
         sync_buffers(model);ddp=None
     else:ddp=DDP(model,device_ids=[device.index] if device.type=='cuda' else None,broadcast_buffers=True)
-    optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'])
+    optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'],betas=(config.get('beta1',0.9),config.get('beta2',0.999)))
+    if rank==0:print(f'Adam lr={config["learning_rate"]} betas={optimizer.param_groups[0]["betas"]} eps={optimizer.param_groups[0]["eps"]}',flush=True)
     scheduler=build_lr_scheduler(optimizer,{'lr_scheduler':{'enabled':True,'factor':config['lr_factor'],
         'patience':config['lr_patience'],'threshold':config['lr_threshold'],'cooldown':config['lr_cooldown'],'min_lr':config['min_lr']}})
     epoch=position=global_step=bad=0;best=math.inf;history=[];pending_sum=0.;pending_count=0;elapsed=0.

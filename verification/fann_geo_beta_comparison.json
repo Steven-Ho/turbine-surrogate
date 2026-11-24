@@ -1,0 +1,25 @@
+{
+  "validation": "CPU only",
+  "checks": {
+    "two_rank_geo_training_validation_checkpoint": "passed",
+    "configured_optimizer_betas": [
+      0.7,
+      0.997
+    ],
+    "legacy_beta_defaults_compatible": true,
+    "changed_resume_betas_rejected": true,
+    "mock_sbatch": "passed",
+    "shell_syntax": "passed"
+  },
+  "experiment": {
+    "nodes": 6,
+    "gpus_per_node": 8,
+    "epochs_this_run": 20,
+    "learning_rate": 0.00017,
+    "beta1": 0.7,
+    "beta2": 0.997,
+    "eps": 1e-08,
+    "optimizer": "Adam",
+    "resume": false
+  }
+}

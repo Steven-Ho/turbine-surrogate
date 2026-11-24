@@ -24,6 +24,8 @@ def build_parser():
     p.add_argument('--allow-legacy-inputs',action='store_true')
     p.add_argument('--seed',type=int,default=42)
     p.add_argument('--learning-rate',type=float,default=1e-4)
+    p.add_argument('--beta1',type=float,default=0.9)
+    p.add_argument('--beta2',type=float,default=0.999)
     p.add_argument('--lr-patience',type=int,default=8)
     p.add_argument('--lr-factor',type=float,default=.5)
     p.add_argument('--lr-threshold',type=float,default=.005)
@@ -52,6 +54,7 @@ def main():
     a=p.parse_args()
     if a.epochs<1 or a.patience<1 or a.rank<1 or a.pod_geometry_bins<1 or a.grad_clip<=0 or a.learning_rate<=0 or not 0<a.min_lr<=a.learning_rate:
         p.error('Invalid budget, rank, clipping or learning-rate setting')
+    if not (0 <= a.beta1 < 1 and 0 <= a.beta2 < 1):p.error('Adam betas must be in [0, 1)')
     if a.cache_samples<1 or a.threads<1 or (a.max_updates is not None and a.max_updates<1):p.error('Counts must be positive')
     if a.graph_owner_nodes<1 or a.graph_edge_chunk<1 or a.graph_cache_mb<0:p.error('Invalid graph chunk/cache size')
     torch.set_num_threads(a.threads)

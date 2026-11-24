@@ -277,7 +277,10 @@ def assert_resume_config(old,new):
     for key in list(old):
         if isinstance(key,tuple) and key and key[0]=='graph_execution_schema':
             old.setdefault('graph_execution_schema',old.pop(key))
-    immutable=['seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
+    new=dict(new)
+    for key,default in [('beta1',0.9),('beta2',0.999)]:
+        old.setdefault(key,default);new.setdefault(key,default)
+    immutable=['beta1','beta2','seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
                'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema','amp','sampler']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))
@@ -335,7 +338,7 @@ def _train_one(name,manifest,config,folder,device,resume=False,max_updates=None)
     from .fann_model_parallel import configure
     configure(model,device)
     print(f'{name}: model ready; entering training loop',flush=True)
-    optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'])
+    optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'],betas=(config.get('beta1',0.9),config.get('beta2',0.999)))
     scheduler=build_lr_scheduler(optimizer,{'lr_scheduler':{'enabled':True,'factor':config['lr_factor'],
         'patience':config['lr_patience'],'threshold':config['lr_threshold'],'cooldown':config['lr_cooldown'],'min_lr':config['min_lr']}})
     epoch=0;position=0;global_step=0;best=math.inf;bad=0;history=[];pending_sum=0.;pending_count=0;elapsed=0.

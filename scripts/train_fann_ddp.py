@@ -27,6 +27,7 @@ def main():
     if args.epochs<1 or args.patience<1 or args.checkpoint_every<1 or args.timeout_minutes<1 or args.threads<1:parser.error('Counts must be positive')
     if args.max_updates is not None and args.max_updates<1:parser.error('max-updates must be positive')
     if args.learning_rate<=0 or not 0<args.min_lr<=args.learning_rate or args.grad_clip<=0:parser.error('Invalid learning rate/clipping')
+    if not (0 <= args.beta1 < 1 and 0 <= args.beta2 < 1):parser.error('Adam betas must be in [0, 1)')
     if args.cache_samples<1:parser.error('cache-samples must be positive')
     if args.graph_owner_nodes<1 or args.graph_edge_chunk<1 or args.graph_cache_mb<0:parser.error('Invalid graph chunk/cache setting')
     if os.environ.get('TURBINE_FANN_PIPELINE_GPUS','1')!='1':parser.error('DDP needs one full model per GPU; set TURBINE_FANN_PIPELINE_GPUS=1')
