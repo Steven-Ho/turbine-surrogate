@@ -900,3 +900,19 @@ runtime/保存逐rank的initialized/completed资源快照，无需启用通信�
 恢复到400轮时，用原slurm_fann_ddp.sh，设置原FANN_RUN_ROOT、FANN_RESUME=1、FANN_EPOCHS=400、FANN_AMP=bf16、FANN_DDP_SAMPLER=random、TURBINE_GEO_ACTIVATION_OFFLOAD=0、TURBINE_GEO_NODE_CHUNK=32768、TURBINE_GEO_MEMORY_CACHE_MB=512及MKL/OpenBLAS/OMP各4；取消FANN_MAX_EPOCHS_PER_RUN和FANN_MAX_UPDATES，并继续sbatch --exclusive。不要直接重用本新开训练入口续训。
 
 判断稳定性时看每轮实际墙钟耗时、batch长尾、CPU分配和显存/主存峰值，而非只看前几步。尚未确认长期吞吐前，不据短测承诺400轮工期。
+
+
+## 独占6节点48卡短训练
+
+```bash
+git pull
+bash scripts/submit_fann_geo_stability_6nodes.sh
+```
+
+默认5个完整训练/验证epoch，独占6节点×8卡，每节点32 CPU、768G主存；沿用1976稳定设置：BF16、CPU卸载关闭、随机采样、512MiB邻域缓存、32768节点块、4个intra-op线程、默认interop，无阶段同步计时及通信调试。FANN_STABILITY_EPOCHS可调整短测轮数。原2节点入口默认仍为2节点。
+
+250例/48卡时一轮6个batch（5×48+10），5轮30次优化器更新；所有样本每轮仍只使用一次，尾批无样本rank执行必要零梯度DDP操作。损失仍按实际节点元素加权。48卡全局batch较大，固定学习率1e-4不自动缩放，因此不能要求与1976的16卡/每轮16步得到相同逐轮loss或收敛速度。本实验新开seed42模型，主要测吞吐和容量。
+
+默认独立目录 `runs/fann_geo_stability_6nodes_时间/GeoTransolver/`，可用FANN_SIX_NODE_RUN_ROOT指定新目录；日志为logs/fann_geo_stability48_作业号_6.out/.err。history.json、runtime/及last.pt/best.pt均保留；5轮验证完成后按epoch_budget安全停止，最终测试评估推迟。检查点总预算仍为400轮。
+
+比较时采用包含验证和保存的完整轮耗时。若目标400轮24小时，平均每轮须低于216秒且为启动/最终评估/运行波动预留余量。单个batch变慢不一定意味着吞吐降低，因为每步最多处理48例。CPU已以6rank、3真实样本验证多空闲rank尾批及完整验证后停止，尚未验证X203六节点实际扩展。

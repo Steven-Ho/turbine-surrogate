@@ -2,6 +2,8 @@
 # Exclusive 16-GPU stability run; stop only after complete validation epochs.
 set -euo pipefail
 mkdir -p logs
+nodes="${FANN_STABILITY_NODES:-2}"
+if [[ ! "$nodes" =~ ^[1-9][0-9]*$ ]]; then echo 'FANN_STABILITY_NODES must be positive' >&2; exit 2; fi
 export FANN_RUN_ROOT="${FANN_STABILITY_RUN_ROOT:-runs/fann_geo_stability_$(date +%Y%m%d_%H%M%S)}"
 export FANN_MAX_EPOCHS_PER_RUN="${FANN_STABILITY_EPOCHS:-5}"
 if [[ ! "$FANN_MAX_EPOCHS_PER_RUN" =~ ^[1-9][0-9]*$ ]]; then echo 'FANN_STABILITY_EPOCHS must be a positive integer' >&2; exit 2; fi
@@ -21,8 +23,8 @@ unset NCCL_DEBUG NCCL_DEBUG_SUBSYS NCCL_DEBUG_FILE MCCL_DEBUG MCCL_DEBUG_SUBSYS 
 unset TORCH_DISTRIBUTED_DEBUG TORCH_CPP_LOG_LEVEL
 # Resource-only snapshots do not enable library logs or per-step GPU sync.
 export FANN_RUNTIME_SNAPSHOT_DIR="$FANN_RUN_ROOT/GeoTransolver/runtime"
-printf 'Exclusive Geo stability: 2 nodes x 8 GPUs, %s complete epochs, output=%s\n' "$FANN_MAX_EPOCHS_PER_RUN" "$FANN_RUN_ROOT"
-sbatch --exclusive --array=6 --nodes=2 --ntasks-per-node=1 --gres=gpu:8 \
+printf 'Exclusive Geo stability: %s nodes x 8 GPUs, %s complete epochs, output=%s\n' "$nodes" "$FANN_MAX_EPOCHS_PER_RUN" "$FANN_RUN_ROOT"
+sbatch --exclusive --array=6 --nodes="$nodes" --ntasks-per-node=1 --gres=gpu:8 \
  --cpus-per-task=32 --mem=768G --signal=B:USR1@900 --export=ALL \
  --job-name=fann_geo_stability --output=logs/fann_geo_stability_%A_%a.out --error=logs/fann_geo_stability_%A_%a.err \
  "$@" scripts/slurm_fann_ddp.sh

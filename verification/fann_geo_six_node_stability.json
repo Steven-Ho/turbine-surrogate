@@ -1,0 +1,31 @@
+{
+  "scope": "CPU-only and mock submission checks; no 48-GPU throughput claim",
+  "tests": {
+    "count": 3,
+    "result": "passed",
+    "log": "/tmp/fann_six_node_stability_tests.log",
+    "coverage": [
+      "6 CPU ranks with 3 real training samples, idle ranks and validation",
+      "complete epoch budget stop and checkpoint",
+      "exclusive 6-node x 8-GPU submission with independent output",
+      "existing 2-node submission regression"
+    ]
+  },
+  "defaults": {
+    "nodes": 6,
+    "gpus_per_node": 8,
+    "exclusive": true,
+    "epochs_this_run": 5,
+    "train_cases": 250,
+    "batches_per_epoch": 6,
+    "updates_total": 30,
+    "amp": "bf16",
+    "offload": false,
+    "sampler": "random",
+    "cache_MiB": 512,
+    "node_chunk": 32768,
+    "intra_threads": 4,
+    "interop": "default",
+    "learning_rate": 0.0001
+  }
+}
