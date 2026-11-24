@@ -45,7 +45,7 @@ while any(p.poll() is None for p in processes):
 raise SystemExit(max(p.returncode for p in processes))
 ''');stub.chmod(0o755)
             with socket.socket() as connection:connection.bind(('127.0.0.1',0));port=connection.getsockname()[1]
-            env=dict(case.env,CUDA_VISIBLE_DEVICES='',PATH=str(case.root)+':'+os.environ['PATH'],TURBINE_GEO_CACHE_DIR=str(case.root/'neighbors'))
+            env=dict(case.env,CUDA_VISIBLE_DEVICES='',FANN_INTEROP_THREADS='1',PATH=str(case.root)+':'+os.environ['PATH'],TURBINE_GEO_CACHE_DIR=str(case.root/'neighbors'))
             output=case.root/'multi'
             result=subprocess.run([sys.executable,'scripts/run_fann_geo_scaling.py','--splits',str(case.split),
                 '--output',str(output),'--nodes','2','--gpu-counts','2','--master-addr','127.0.0.1','--master-port',str(port),
@@ -58,6 +58,8 @@ raise SystemExit(max(p.returncode for p in processes))
             self.assertEqual(report['purpose'],'diagnostic')
             communication=output/'gpus_2/communication'
             self.assertEqual(len(list(communication.glob('runtime_*.json'))),4)
+            for path in communication.glob('runtime_*.json'):
+                self.assertEqual(json.loads(path.read_text())['interop_threads'],1)
             self.assertTrue((output/'gpus_2/communication_summary.json').is_file())
             timings=[json.loads(line) for line in (output/'gpus_2/GeoTransolver/timings.jsonl').read_text().splitlines()]
             self.assertEqual(sum(row['event']=='train_step' for row in timings),2)

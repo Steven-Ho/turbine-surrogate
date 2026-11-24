@@ -1,0 +1,27 @@
+{
+  "scope": "CPU-only implementation validation; cluster performance pending",
+  "tests": [
+    {
+      "count": 4,
+      "result": "passed",
+      "log": "/tmp/fann_interop_allreduce_tests.log",
+      "coverage": "2-rank AllReduce correctness and latency output; interop=1 snapshots; independent exclusive submission; simulated 2-agent training and metrics"
+    },
+    {
+      "count": 3,
+      "result": "passed",
+      "log": "/tmp/fann_interop_default_regression.log",
+      "coverage": "original default single-node suite and logger behavior"
+    }
+  ],
+  "cluster_jobs": {
+    "A": "same two-node allocation: default interop versus interop=1, same profiled five training steps",
+    "B": "separate two-node allocation: dataset-free 8/16-rank AllReduce, FP32, interop=1"
+  },
+  "limitations": [
+    "Thread-pool activity cannot be inferred from thread counts alone",
+    "Interop setter does not necessarily control vendor background pools",
+    "Barriers and tensor fill excluded from AllReduce timing",
+    "Network library log support must be verified on X203"
+  ]
+}

@@ -4,12 +4,14 @@ from tfai.benchmarks.fann_logging import print
 
 import os
 from pathlib import Path
+from tfai.benchmarks.fann_comm_diagnostics import setup_debug,snapshot,configure_interop
+# Set library debug filenames before importing Torch in each worker.
+setup_debug()
 import torch
 import torch.distributed as dist
 from scripts.train_fann import build_parser
 from tfai.benchmarks.fann_startup_cache import load_startup
 from tfai.benchmarks.fann_ddp import train_ddp,SUPPORTED
-from tfai.benchmarks.fann_comm_diagnostics import setup_debug,snapshot
 
 
 def main():
@@ -28,6 +30,7 @@ def main():
     if args.graph_owner_nodes<1 or args.graph_edge_chunk<1 or args.graph_cache_mb<0:parser.error('Invalid graph chunk/cache setting')
     if os.environ.get('TURBINE_FANN_PIPELINE_GPUS','1')!='1':parser.error('DDP needs one full model per GPU; set TURBINE_FANN_PIPELINE_GPUS=1')
     local_rank=int(os.environ.get('LOCAL_RANK','0'));torch.set_num_threads(args.threads)
+    configure_interop()
     if args.device.startswith('cuda'):
         if not torch.cuda.is_available():raise RuntimeError('GPU unavailable')
         if local_rank>=torch.cuda.device_count():raise RuntimeError('LOCAL_RANK exceeds visible GPUs; check Slurm allocation and FANN_DDP_GPUS_PER_NODE')

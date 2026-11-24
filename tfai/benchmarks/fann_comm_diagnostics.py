@@ -10,7 +10,7 @@ ENV_NAMES=('NCCL_SOCKET_IFNAME','MCCL_SOCKET_IFNAME','NCCL_IB_HCA','MCCL_IB_HCA'
  'NCCL_IB_DISABLE','MCCL_IB_DISABLE','NCCL_NET','MCCL_NET','NCCL_NET_GDR_LEVEL','MCCL_NET_GDR_LEVEL',
  'NCCL_IB_GID_INDEX','MCCL_IB_GID_INDEX','NCCL_P2P_DISABLE','MCCL_P2P_DISABLE',
  'NCCL_SHM_DISABLE','MCCL_SHM_DISABLE','NCCL_ALGO','MCCL_ALGO',
- 'OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','CUDA_VISIBLE_DEVICES','MACA_VISIBLE_DEVICES',
+ 'FANN_INTEROP_THREADS','OMP_NUM_THREADS','MKL_NUM_THREADS','OPENBLAS_NUM_THREADS','CUDA_VISIBLE_DEVICES','MACA_VISIBLE_DEVICES',
  'SLURM_CPUS_PER_TASK','SLURM_CPU_BIND','SLURM_MEM_BIND','LOCAL_WORLD_SIZE',
  'NCCL_NET_PLUGIN','MCCL_NET_PLUGIN','GLOO_SOCKET_IFNAME','TORCH_DISTRIBUTED_DEBUG',
  'TORCH_NCCL_BLOCKING_WAIT','CUDA_LAUNCH_BLOCKING','MACA_LAUNCH_BLOCKING','MACA_LAUNCH_MODE',
@@ -58,7 +58,8 @@ def snapshot(root,device,phase):
                        for path in Path('/sys/class/infiniband').glob('*/ports/*')}
     maps=read_text('/proc/self/maps') or ''
     data['communication_libraries']=sorted({line.split()[-1] for line in maps.splitlines()
-                                          if any(key in line.lower() for key in ('libmccl','libnccl','libmaca'))})
+                                          if any(key in line.lower() for key in ('libmccl','libnccl','libmaca','librccl','libhccl','libtorch_cuda'))})
+    data['loaded_shared_libraries']=sorted({line.split()[-1] for line in maps.splitlines() if line.split() and line.split()[-1].startswith('/') and '.so' in line.split()[-1]})
     tasks=list(Path('/proc/self/task').glob('*'));data['thread_count']=len(tasks);data['thread_affinities']={}
     for task in tasks[:128]:
         for line in (read_text(task/'status') or '').splitlines():
@@ -82,3 +83,13 @@ def summarize_communication(folder):
             'note':'Bootstrap socket lines do not prove data transport uses sockets. No RDMA/TCP classification inferred automatically.'}
     path=folder/'communication_summary.json';path.write_text(json.dumps(result,indent=2)+'\n')
     return str(path)
+
+
+def configure_interop():
+    import torch
+    value=os.environ.get('FANN_INTEROP_THREADS')
+    if value is not None:
+        count=int(value)
+        if count<1:raise ValueError('FANN_INTEROP_THREADS must be positive')
+        torch.set_num_interop_threads(count)
+    return torch.get_num_interop_threads()

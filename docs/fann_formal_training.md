@@ -845,3 +845,23 @@ bash scripts/submit_fann_geo_network_diag.sh
 快照记录实际主机/设备、主线程和最多128个线程的CPU亲和性、线程数、网络设备/IB端口状态、关键通信与启动环境变量、/proc/self/maps中的通信库路径。框架backend显示nccl可能仍由厂商MCCL实现，需结合已加载库和日志判读。bootstrap使用Socket不代表训练数据走Socket；网络设备存在/端口UP也不证明被选用，汇总不自动作RDMA/TCP结论。
 
 若额外耗时集中在前向/加载，优先查节点资源、缓存与CPU绑定；集中在backward_with_ddp_sync时，再做通信微基准。该阶段仍包含反向计算和与通信重叠的等待，不能直接当成纯AllReduce时间。CPU上已模拟双Slurm代理、真实torchrun及阶段采集验证；X203网络选择和性能须集群实测。
+
+
+## 并行检查interop线程与纯AllReduce
+
+```bash
+git pull
+bash scripts/submit_fann_interop_allreduce.sh
+```
+
+无依赖提交两项作业，各申请独占2节点×8卡；资源足够时并发，需要合计4个8卡节点。顶层结果默认 `runs/fann_interop_allreduce_时间/`，jobs.tsv记录作业号；FANN_CHECKS_ROOT可指定新目录。
+
+A：interop/下在同一次2节点分配中顺序运行interop_default和interop_1，每项保持1972的BF16、卸载关闭、512MiB缓存、32768分块、4个intra-op线程、16例预热+64例计量及5步阶段诊断。默认组明确取消FANN_INTEROP_THREADS，不假定厂商默认一定为128；实验组在worker早期调用torch.set_num_interop_threads(1)。runtime_rank_*.json记录实际值和线程总数，不能假定该设置必然控制所有厂商后台线程。CPU亲和性及网络路由设置不改。两组新模型、同seed、同批次与预算，可比较耗时及loss；后组仍可能受益于OS缓存。
+
+B：allreduce/下在另一对节点顺序测试单节点8卡和双节点16卡，分别保存gpus_8和gpus_16/report.json。无模型、无faNN样本读取、无优化器，固定FP32 SUM AllReduce；大小为4B、16B、4KiB、1MiB、8MiB、32MiB，每个大小预热5次、计量20次（FANN_ALLREDUCE_ITERATIONS可调）。1MiB附近覆盖当前小模型梯度量的量级，微小消息检查延迟，大消息检查吞吐。每次计时排除fill和barrier，包含all_reduce及设备完成同步；汇总每次各rank最大耗时的mean/median/p95，并保留逐rank原始时间和结果正确性验证。ring_normalized_bus_GBps只是归一化指标，不是实测NIC物理带宽。B固定interop=1，CPU线程4；默认8/16卡均在同一对节点内比较。
+
+两个作业都仅在阶段外写日志和资源快照，AllReduce计量不写盘。训练A仍包含原有样本读取。模型A的GPU同步诊断有开销，不与无诊断1971直接比较绝对吞吐；优先比较A内部两组。B的barrier不计入AllReduce耗时，不能当作整个训练通信总时间。
+
+为排查1972未生成通信日志的问题，worker现在在导入Torch前设置独立日志文件名，并额外保留全部已加载共享库路径；仍不能保证厂商版本响应MCCL/NCCL日志变量。路径选择只读记录，不强制IB/Socket/HCA/GDR等设置。B不依赖OpenGL或faNN准备数据。
+
+判断：若A中interop=1明显降低线程/阶段耗时，优先采用该设置；若线程仍约134，则可能是其他线程池，不能把它归为interop直接控制。若B中16卡AllReduce相对8卡严重退化，重点查通信后端/网络/CPU通信推进；若B正常而A仍慢，重点查模型反向、重计算、线程调度及计算通信重叠。收集顶层目录压缩包及logs/fann_interop_作业号.out/.err、logs/fann_allreduce_作业号.out/.err。

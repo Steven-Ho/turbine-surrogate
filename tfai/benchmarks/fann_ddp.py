@@ -226,7 +226,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 'rng_state':states[0],'training_seconds':elapsed+time.perf_counter()-started,
                 'distributed_state':{'world_size':world,'rng_states':states,'global_batch_cases':world,
                                      'batch_norm':'local BatchNorm; rank0 buffers broadcast'},
-                'execution_runtime':{'ddp_backend':dist.get_backend(),'gradient_sync':'case_allreduce' if manual else 'native_ddp',
+                'execution_runtime':{'torch_interop_threads':torch.get_num_interop_threads(),'ddp_backend':dist.get_backend(),'gradient_sync':'case_allreduce' if manual else 'native_ddp',
                                      'transolver_chunk':getattr(model.net,'chunk_size',None),
                                      'geo_activation_offload':getattr(model.net,'activation_offload',False),
                                      'geo_node_chunk':getattr(getattr(model.net,'model',None),'node_chunk_size',None)}}
