@@ -1,4 +1,4 @@
-"""Sequential 1/2/4/8-process training throughput in a single node allocation."""
+"""Controlled Geo training throughput in single- or multi-node allocations."""
 import argparse
 import csv
 import json
@@ -19,11 +19,29 @@ STEP=re.compile(r'GeoTransolver DDP .*? step=(\d+) epoch_cases=\d+/\d+ batch_cas
 
 def write_report(output,report):
     atomic_json(report,output/'report.json')
-    columns=['gpus','measured_cases','wall_seconds','cases_per_second','speedup','efficiency',
+    columns=['gpus','nodes','gpus_per_node','speedup_vs_8gpu','efficiency_vs_8gpu','measured_cases','wall_seconds','cases_per_second','speedup','efficiency',
              'mean_rank0_seconds','median_rank0_seconds']
     with (output/'summary.csv').open('w',newline='') as stream:
         writer=csv.DictWriter(stream,fieldnames=columns);writer.writeheader()
         for row in report['results']:writer.writerow({key:row.get(key,'') for key in columns})
+
+
+def multinode_command(nodes,per_node,master,port,training):
+    return ['srun','--export=ALL',f'--ntasks={nodes}','--ntasks-per-node=1','--kill-on-bad-exit=1',
+        'bash','-c',
+        'exec "$1" -m torch.distributed.run --nnodes="$2" --nproc_per_node="$3" --node_rank="${SLURM_PROCID:?}" --master_addr="$4" --master_port="$5" "${@:6}"',
+        'fann-scaling-node',sys.executable,str(nodes),str(per_node),master,str(port),*training]
+
+
+def compare_to_reference(row,reference):
+    old=next((r for r in reference['results'] if r['gpus']==8),None)
+    if old is None:raise ValueError('Reference must include an 8-GPU result')
+    row['speedup_vs_8gpu']=row['cases_per_second']/old['cases_per_second']
+    row['efficiency_vs_8gpu']=row['speedup_vs_8gpu']/(row['gpus']/8)
+    single=next((r for r in reference['results'] if r['gpus']==1),None)
+    if single:
+        row['speedup']=row['cases_per_second']/single['cases_per_second']
+        row['efficiency']=row['speedup']/row['gpus']
 
 
 def main():
@@ -31,6 +49,10 @@ def main():
     parser.add_argument('--splits',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--gpu-counts',nargs='+',type=int,default=[1,2,4,8])
+    parser.add_argument('--nodes',type=int,default=1)
+    parser.add_argument('--master-addr')
+    parser.add_argument('--master-port',type=int,default=29500)
+    parser.add_argument('--reference-report',type=Path)
     parser.add_argument('--warmup-cases',type=int,default=16)
     parser.add_argument('--measure-cases',type=int,default=64)
     parser.add_argument('--threads',type=int,default=4)
@@ -38,11 +60,13 @@ def main():
     parser.add_argument('--backend',default='nccl')
     args=parser.parse_args()
     if not args.gpu_counts or len(set(args.gpu_counts))!=len(args.gpu_counts) or any(p<1 for p in args.gpu_counts):parser.error('Counts must be unique and positive')
+    if args.nodes<1 or any(p%args.nodes for p in args.gpu_counts):parser.error('GPU counts must be divisible by node count')
+    if args.nodes>1 and not args.master_addr:parser.error('Multi-node launch requires --master-addr')
     if min(args.warmup_cases,args.measure_cases,args.threads)<1:parser.error('Budgets and threads must be positive')
     if any(args.warmup_cases%p or args.measure_cases%p for p in args.gpu_counts):parser.error('Both case budgets must be divisible by every process count')
-    if args.device=='cuda' and (not torch.cuda.is_available() or max(args.gpu_counts)>torch.cuda.device_count()):raise RuntimeError('Insufficient visible GPUs; no CPU fallback')
+    if args.device=='cuda' and (not torch.cuda.is_available() or max(args.gpu_counts)//args.nodes>torch.cuda.device_count()):raise RuntimeError('Insufficient visible GPUs; no CPU fallback')
     args.output.mkdir(parents=True,exist_ok=False)
-    report={'state':'running','device':args.device,'gpu_counts':args.gpu_counts,'warmup_cases':args.warmup_cases,
+    report={'state':'running','nodes':args.nodes,'node_list':os.environ.get('SLURM_JOB_NODELIST'),'device':args.device,'gpu_counts':args.gpu_counts,'warmup_cases':args.warmup_cases,
             'measure_cases':args.measure_cases,'results':[],'torch_version':torch.__version__,
             'host':socket.gethostname(),'job_id':os.environ.get('SLURM_JOB_ID'),
             'gpu_name':torch.cuda.get_device_name(0) if args.device=='cuda' else None,
@@ -53,6 +77,13 @@ def main():
         total_cases=args.warmup_cases+args.measure_cases
         if total_cases>len(manifest['splits']['train']):raise ValueError('Case budget must fit within the first epoch to preserve identical sample order')
         report['dataset_signature']=manifest['signature'];report['train_cases']=len(manifest['splits']['train'])
+        reference=json.loads(args.reference_report.read_text()) if args.reference_report else None
+        if reference is not None:
+            for field in ('dataset_signature','warmup_cases','measure_cases','torch_version','device','gpu_name'):
+                if reference.get(field)!=report.get(field):raise ValueError('Reference differs: '+field)
+            if reference.get('state')!='complete':raise ValueError('Reference report is not complete')
+            if not any(row['gpus']==8 for row in reference.get('results',[])):raise ValueError('Reference must include an 8-GPU result')
+            report['reference_report']=str(args.reference_report)
         for count in args.gpu_counts:
             folder=args.output/f'gpus_{count}';folder.mkdir()
             updates=total_cases//count;warm_steps=args.warmup_cases//count
@@ -62,12 +93,15 @@ def main():
                 TURBINE_FANN_PIPELINE_GPUS='1',TURBINE_GEO_ACTIVATION_OFFLOAD='0',TURBINE_GEO_NODE_CHUNK='32768',
                 TURBINE_GEO_MEMORY_CACHE_MB='512',TURBINE_GEO_MEMORY_CACHE='32',
                 TURBINE_GEO_QUERY_BACKEND='kdtree',TURBINE_GEO_REFERENCE_MAX_POINTS='0')
-            command=[sys.executable,'-m','torch.distributed.run','--standalone',f'--nproc_per_node={count}',
-                'scripts/train_fann_ddp.py','--models','GeoTransolver','--splits',str(args.splits),
+            training=['scripts/train_fann_ddp.py','--models','GeoTransolver','--splits',str(args.splits),
                 '--output',str(folder),'--device',args.device,'--backend',args.backend,'--amp','bf16',
                 '--sampler','random','--scale','small','--seed','42','--threads',str(args.threads),'--epochs','400',
                 '--checkpoint-every',str(updates+1),'--max-updates',str(updates)]
-            print(f'SCALING start processes={count} warmup_cases={args.warmup_cases} measure_cases={args.measure_cases} updates={updates}',flush=True)
+            if args.nodes==1:
+                command=[sys.executable,'-m','torch.distributed.run','--standalone',f'--nproc_per_node={count}',*training]
+            else:
+                command=multinode_command(args.nodes,count//args.nodes,args.master_addr,args.master_port,training)
+            print(f'SCALING start nodes={args.nodes} processes={count} warmup_cases={args.warmup_cases} measure_cases={args.measure_cases} updates={updates}',flush=True)
             records=[];measure_start=measure_end=None
             with (folder/'console.log').open('w') as log:
                 process=subprocess.Popen(command,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
@@ -89,7 +123,7 @@ def main():
             if len(records)!=updates or sum(row['cases'] for row in measured)!=args.measure_cases or measure_start is None or measure_end is None:
                 raise RuntimeError('Incomplete or inconsistent training-step records')
             wall=measure_end-measure_start
-            report['results'].append({'gpus':count,'measured_cases':args.measure_cases,'wall_seconds':wall,
+            report['results'].append({'gpus':count,'nodes':args.nodes,'gpus_per_node':count//args.nodes,'measured_cases':args.measure_cases,'wall_seconds':wall,
                 'cases_per_second':args.measure_cases/wall,
                 'mean_rank0_seconds':statistics.mean(row['rank0_seconds'] for row in measured),
                 'median_rank0_seconds':statistics.median(row['rank0_seconds'] for row in measured)})
@@ -97,6 +131,8 @@ def main():
             if baseline:
                 for row in report['results']:
                     row['speedup']=row['cases_per_second']/baseline;row['efficiency']=row['speedup']/row['gpus']
+            if reference is not None:
+                compare_to_reference(report['results'][-1],reference)
             write_report(args.output,report)
             print('SCALING result '+json.dumps(report['results'][-1]),flush=True)
         report['state']='complete';write_report(args.output,report)

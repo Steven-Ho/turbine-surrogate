@@ -802,3 +802,23 @@ python3 scripts/summarize_fann_geo_scaling_parallel.py --root runs/fann_geo_scal
 生成顶层summary.csv和report.json，重算相对单卡加速比与扩展效率。可在部分完成时运行，状态会标为incomplete并列出尚未完成的卡数。汇总检查数据签名、预热/计量预算、Torch版本及GPU型号一致，拒绝混合不一致结果。失败组请查看对应日志，汇总不会把未完成组当成成功。
 
 独占节点避免组间CPU/GPU争用，但不同节点性能可能不同，共享存储仍有并发读压力，不能将并行版所有差异都解释为纯计算扩展。报告保留host、gpu_name、job_id，必要时以原同节点顺序版复核。公共partition等参数可追加到提交器，不要覆盖exclusive、gres、nodes等隔离资源设置。
+
+
+## 对照1970的2节点16卡固定配置吞吐测试
+
+```bash
+git pull
+# 可选：指向已完成的1970串行报告，自动计算8→16卡扩展
+export FANN_SCALING_REFERENCE_REPORT=runs/fann_geo_scaling_1970/report.json
+bash scripts/submit_fann_geo_scaling_2nodes.sh
+```
+
+采用2节点×8卡、每节点32 CPU和768G主存，OpenMP/MKL/OpenBLAS均4线程/进程。复用run_fann_geo_scaling.py的全部训练设置：BF16、CPU卸载关闭、随机采样、512MiB缓存、32768节点分块、seed42、原学习率、独立初始权重，关闭同步阶段诊断及中途检查点。预热16例、计量64例，与1970覆盖相同随机样本区间；16卡时共5次全局更新，其中1次预热、4次计量，之后安全保存退出，不运行验证。全局batch不同会改变参数更新轨迹，不能据此比较逐步loss。
+
+Python控制器直接在batch进程运行，由它启动srun的两个节点代理，避免嵌套srun资源占用。每节点仅一个torchrun代理，每代理8个worker，总world_size应为16；master地址取首节点，端口按作业号区分。
+
+结果默认 `runs/fann_geo_scaling16_作业号/`，包含report.json、summary.csv及gpus_16中的console.log、steps.json和GeoTransolver检查点。Slurm日志为logs/fann_geo_scaling16_作业号.out/.err。FANN_SCALING_2NODE_OUTPUT可指定新的独立目录。无需设置旧FANN_RUN_ROOT或resume变量，也不重新预计算几何缓存。
+
+参考报告可省略，届时只报告16卡吞吐，之后手动与1970比较。若提供参考，必须数据签名、预算、Torch版本和GPU型号匹配；report中的speedup_vs_8gpu为16卡吞吐÷参考8卡吞吐，efficiency_vs_8gpu为该加速比÷2。若参考还含1卡结果，也报告相对单卡的总加速比。
+
+默认仅4个计量batch，适合先筛查跨节点退化；更长测量应给单/双节点都设置相同更大预算，并用新单节点报告比较，不能与不同预算的1970自动混算。已在CPU上模拟双Slurm代理、真实torchrun会合与训练，尚未在本机GPU或X203跨节点验证。

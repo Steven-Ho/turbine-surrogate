@@ -1,0 +1,28 @@
+{
+  "scope": "CPU-only validation, no X203 network/GPU throughput measurement",
+  "test_run": {
+    "count": 3,
+    "result": "passed",
+    "log": "/tmp/fann_scaling_multinode_tests.log",
+    "coverage": [
+      "cross-node launch argument construction and 8-to-16 metrics",
+      "two Slurm agents emulated on localhost using real torchrun static rendezvous and CPU DDP",
+      "existing one-node scaling integration"
+    ]
+  },
+  "submission": "mock sbatch and shell syntax passed",
+  "defaults": {
+    "nodes": 2,
+    "gpus_per_node": 8,
+    "warmup_cases": 16,
+    "measured_cases": 64,
+    "total_updates": 5,
+    "measured_updates": 4,
+    "threads_per_rank": 4,
+    "amp": "bf16",
+    "CPU_offload": false,
+    "CPU_neighbor_cache_MiB": 512,
+    "node_chunk": 32768
+  },
+  "reference": "optional completed 1970 report, matching signature, budgets, Torch and GPU name required"
+}
