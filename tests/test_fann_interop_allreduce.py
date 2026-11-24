@@ -10,6 +10,21 @@ ROOT=Path(__file__).resolve().parents[1]
 
 
 class InteropAllReduceTests(unittest.TestCase):
+    def test_microbenchmark_does_not_import_tfai_or_vtk(self):
+        code="""
+import sys,runpy,importlib.abc
+class Block(importlib.abc.MetaPathFinder):
+ def find_spec(self,fullname,path=None,target=None):
+  if fullname.split('.')[0] in ('tfai','vtk','vtkmodules','pyvista'):
+   raise ImportError('Forbidden graphical/package import: '+fullname)
+sys.meta_path.insert(0,Block())
+sys.argv=['scripts/benchmark_fann_allreduce.py','--help']
+runpy.run_path(sys.argv[0],run_name='__main__')
+"""
+        env=dict(os.environ,CUDA_VISIBLE_DEVICES='',PYTHONPATH=str(ROOT))
+        result=subprocess.run([sys.executable,'-c',code],cwd=ROOT,env=env,capture_output=True,text=True,timeout=60)
+        self.assertEqual(result.returncode,0,result.stdout+'\n'+result.stderr)
+
     def test_cpu_allreduce_and_interop_snapshot(self):
         with tempfile.TemporaryDirectory() as home:
             root=Path(home);output=root/'run'

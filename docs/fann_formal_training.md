@@ -865,3 +865,18 @@ B：allreduce/下在另一对节点顺序测试单节点8卡和双节点16卡，
 为排查1972未生成通信日志的问题，worker现在在导入Torch前设置独立日志文件名，并额外保留全部已加载共享库路径；仍不能保证厂商版本响应MCCL/NCCL日志变量。路径选择只读记录，不强制IB/Socket/HCA/GDR等设置。B不依赖OpenGL或faNN准备数据。
 
 判断：若A中interop=1明显降低线程/阶段耗时，优先采用该设置；若线程仍约134，则可能是其他线程池，不能把它归为interop直接控制。若B中16卡AllReduce相对8卡严重退化，重点查通信后端/网络/CPU通信推进；若B正常而A仍慢，重点查模型反向、重计算、线程调度及计算通信重叠。收集顶层目录压缩包及logs/fann_interop_作业号.out/.err、logs/fann_allreduce_作业号.out/.err。
+
+
+### AllReduce在导入时提示缺少libGL.so.1
+
+1974失败于微基准启动前的导入阶段：导入tfai.benchmarks会执行tfai/__init__.py，并间接导入VTK。微基准现通过stdlib按文件加载独立诊断/日志辅助代码，绕开tfai包初始化，不需要额外安装OpenGL。训练worker的通信日志引导也改为先独立设置，再导入Torch及模型依赖，修正原先被tfai顶层提前导入Torch的顺序。
+
+更新后只重交AllReduce即可，interop作业不因另一作业的失败而需要重启：
+
+```bash
+git pull
+export FANN_ALLREDUCE_OUTPUT="runs/fann_allreduce_retry_$(date +%Y%m%d_%H%M%S)"
+sbatch --exclusive scripts/slurm_fann_allreduce.sh
+```
+
+已用阻断tfai/VTK/PyVista导入的子进程测试及CPU双rank AllReduce验证。该错误不提供网络性能结论，原1974尚未执行到通信微基准。

@@ -1,10 +1,11 @@
 """Launch with torchrun: complete-case multi-node DDP for faNN models 1 through 6."""
 from datetime import timedelta
-from tfai.benchmarks.fann_logging import print
 
 import os
 from pathlib import Path
-from tfai.benchmarks.fann_comm_diagnostics import setup_debug,snapshot,configure_interop
+from scripts.fann_diagnostic_bootstrap import load_diagnostic_helpers
+_comm,print=load_diagnostic_helpers()
+setup_debug,snapshot,configure_interop=_comm.setup_debug,_comm.snapshot,_comm.configure_interop
 # Set library debug filenames before importing Torch in each worker.
 setup_debug()
 import torch
