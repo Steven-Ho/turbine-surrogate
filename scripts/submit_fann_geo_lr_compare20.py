@@ -1,24 +1,32 @@
 """Resume both five-epoch six-node controls to a total of twenty epochs."""
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
-import torch
 
 
 def check(root, lr):
     folder = root / 'GeoTransolver'
-    checkpoint = torch.load(folder / 'last.pt', map_location='cpu', weights_only=False)
-    if checkpoint['model'] != 'GeoTransolver':
+    # Login nodes need no Torch or accelerator runtime. The training workers
+    # perform authoritative checkpoint/config validation when resuming.
+    for name in ('last.pt', 'best.pt', 'status.json', 'history.json'):
+        if not (folder / name).is_file():
+            raise ValueError(f'{root}: missing {name}')
+    status = json.loads((folder / 'status.json').read_text())
+    history = json.loads((folder / 'history.json').read_text())
+    if status.get('model') != 'GeoTransolver':
         raise ValueError(f'{root}: wrong model')
-    if abs(checkpoint['config']['learning_rate'] - lr) > 1e-12:
-        raise ValueError(f'{root}: learning rate differs from {lr}')
-    if checkpoint['completed_epochs'] != 5 or checkpoint['position'] != 0:
+    if status.get('completed_epochs') != 5 or status.get('position') != 0:
         raise ValueError(f'{root}: expected a complete epoch-5 checkpoint')
-    if checkpoint.get('distributed_state', {}).get('world_size') != 48:
+    if status.get('world_size') != 48:
         raise ValueError(f'{root}: expected world_size=48')
-    if not (folder / 'best.pt').is_file():
-        raise ValueError(f'{root}: missing best.pt')
+    if len(history) != 5 or [row.get('epoch') for row in history] != list(range(1, 6)):
+        raise ValueError(f'{root}: expected five complete validation history entries')
+    if any(abs(row['lr'] - lr) > 1e-12 for row in history):
+        raise ValueError(f'{root}: learning rate differs from {lr}')
+    if status.get('global_step') != history[-1].get('global_step'):
+        raise ValueError(f'{root}: status and history steps disagree')
     return root
 
 
@@ -44,7 +52,7 @@ def main():
     parser.add_argument('--lr17-root', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
-    # Validate both checkpoints before submitting either job. No dataset scan.
+    # Validate both run metadata sets before submitting either job. No dataset scan.
     runs = [
         (resolve(args.lr1_root, 'fann_geo_stability_6nodes_*', 1e-4), '0.0001', 'lr1'),
         (resolve(args.lr17_root, 'fann_geo_stability_6nodes_lr17_*', 1.7e-4), '0.00017', 'lr17'),
