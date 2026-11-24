@@ -916,3 +916,29 @@ bash scripts/submit_fann_geo_stability_6nodes.sh
 默认独立目录 `runs/fann_geo_stability_6nodes_时间/GeoTransolver/`，可用FANN_SIX_NODE_RUN_ROOT指定新目录；日志为logs/fann_geo_stability48_作业号_6.out/.err。history.json、runtime/及last.pt/best.pt均保留；5轮验证完成后按epoch_budget安全停止，最终测试评估推迟。检查点总预算仍为400轮。
 
 比较时采用包含验证和保存的完整轮耗时。若目标400轮24小时，平均每轮须低于216秒且为启动/最终评估/运行波动预留余量。单个batch变慢不一定意味着吞吐降低，因为每步最多处理48例。CPU已以6rank、3真实样本验证多空闲rank尾批及完整验证后停止，尚未验证X203六节点实际扩展。
+
+
+## GeoTransolver 网格域并行与数据并行组合
+
+本项目在原有portable_torch后端实现显式节点分片，参考[官方域并行训练示例](https://docs.nvidia.com/physicsnemo/latest/physicsnemo/examples/cfd/external_aerodynamics/unified_external_aero_recipe/README.html#domain-parallelism)和GALE的全局切片归约。沿节点分片计算局部特征、投影和注意力回写；归约切片分子/分母后才执行全局注意力。条件token本身已复制，不做重复求和。反向包含可微SUM，参数梯度汇总后按真实全局节点元素数归一化。每个算例每轮一次，尾批空闲组仍执行必要的组内前反向通信。
+
+兼容策略：仅使用普通张量、基础SUM/all_gather和现有SDPA/BF16，不安装新版PhysicsNeMo，不依赖ShardTensor、DTensor、FSDP、Transformer Engine、Warp或自定义GPU内核。目标是现有沐曦PyTorch2.6环境，GPU侧仍用集群已工作的nccl接口；它不等于已经完成X203硬件验证。
+
+先在一个独占8卡节点执行能力和吞吐检查：
+
+```bash
+git pull
+bash scripts/submit_fann_geo_domain_check.sh
+```
+
+先以4卡合作计算一个67节点的小算例，FP32/BF16分别检查预测、梯度和一次Adam更新与单卡完整参考的差异；失败即停止，不启动faNN吞吐测试。能力报告位于 `runs/fann_geo_domaincheck_<job>/capability/capability.json`，runtime/记录逐rank硬件/软件环境。随后串行比较完整faNN算例的1卡和4卡合作训练：均global_batch=1，seed42、small、BF16、关闭卸载、默认Adam超参数，2个预热算例+8个计时算例，更新次数和算例顺序相同。仅有浮点归约差异。报告在同目录scaling/report.json及summary.csv；日志在logs/fann_geo_domaincheck_<job>.out/.err。8卡独占是为了保持与既有节点控制实验一致，最多4卡参与这一检查。
+
+能力检查成功且实测有收益后，可以提交8节点短训练：
+
+```bash
+bash scripts/submit_fann_geo_domain_8nodes.sh
+```
+
+64张卡按连续rank组成16组，每组4卡，同一组留在一个8卡节点内，每节点2组。固定global_batch最多16个算例，250个训练样本每轮16步，尾批10例；与原2节点16卡baseline具有相同的算例顺序、更新次数和节点加权损失定义。默认新开5完整epoch，checkpoint总预算400；lr=1e-4、betas=(0.9,0.999)、BF16、关闭CPU卸载，其他稳定性设置不变。可设FANN_DOMAIN_EPOCHS改变短测轮数。结果为runs/fann_geo_domain4_8nodes_<时间>/GeoTransolver，日志为logs/fann_geo_dp16dom4_<job>_6.out/.err。rank0打印domain_size=4、data_groups=16，检查点保存物理world_size=64和global_batch_cases=16。续训配置必须保持domain_size，旧未标注此项的检查点按1解释。
+
+首版限制：固定几何坐标在组内各卡复制，用完整几何邻居表查询并只将本分片的邻居索引传入GPU，保留跨分片邻居和既有磁盘缓存键；无需动态特征halo。整算例CPU数据读取与坐标尚未分摊，同组4rank仍分别读取同一算例；这可能使I/O成为瓶颈，不能据4卡数量承诺4倍加速。验证时组内汇总预测并仅由组长计入统计和导出，内存占用仍包含整域输出。当前仅支持GeoTransolver、random采样、portable_torch非TE/非plus路径，节点数至少为domain_size；chunk必须为正。CPU已覆盖混合并行梯度、空闲组尾批、完整验证、检查点精确续训及4分片FP32/BF16数值对照。尚未运行X203或64卡实测。

@@ -58,6 +58,7 @@ printf 'DDP model=%s nodes=%s GPUs/node=%s master=%s:%s\n' "$model" "$SLURM_NNOD
 srun --export=ALL --ntasks="$SLURM_NNODES" --ntasks-per-node=1 --kill-on-bad-exit=1 \
   bash -c 'exec python -m torch.distributed.run --nnodes="$SLURM_NNODES" --nproc_per_node="$FANN_DDP_GPUS_PER_NODE" --node_rank="$SLURM_PROCID" --master_addr="$MASTER_ADDR" --master_port="$MASTER_PORT" scripts/train_fann_ddp.py "$@"' \
   fann-ddp --models "$model" --splits "$FANN_SPLITS" --output "$FANN_RUN_ROOT" --domain "${FANN_DOMAIN:-full}" \
+  --domain-size "${FANN_DOMAIN_SIZE:-1}" \
   --learning-rate "${FANN_LEARNING_RATE:-0.0001}" --beta1 "${FANN_BETA1:-0.9}" --beta2 "${FANN_BETA2:-0.999}" \
   --amp "${FANN_AMP:-off}" --epochs "${FANN_EPOCHS:-400}" --threads "${FANN_THREADS:-4}" --scale "${FANN_SCALE:-small}" --grid "${FANN_GRID:-32}" --rank "${FANN_POD_RANK:-32}" \
   --backend "${FANN_DDP_BACKEND:-nccl}" --timeout-minutes "${FANN_DDP_TIMEOUT_MINUTES:-120}" --checkpoint-every "${FANN_DDP_CHECKPOINT_EVERY:-10}" \

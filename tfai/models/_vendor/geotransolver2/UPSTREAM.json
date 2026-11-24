@@ -33,5 +33,15 @@
       "Cache schema v2 separates this tie-handling policy from earlier exact-Torch-guard caches"
     ],
     "verification": "Small query/output/gradient parity retained for legacy-size inputs; large-path no-cdist and memory-bound tests. X203 kernel execution and full training still require cluster validation."
+  },
+  "domain_parallel": {
+    "implementation": "Portable explicit node sharding and autograd SUM, inspired by upstream ShardTensor Partial-to-Replicate slice reductions; not a ShardTensor backport",
+    "references": [
+      "https://github.com/NVIDIA/physicsnemo/blob/main/physicsnemo/nn/module/gale.py",
+      "https://docs.nvidia.com/physicsnemo/latest/physicsnemo/examples/cfd/external_aerodynamics/unified_external_aero_recipe/README.html#domain-parallelism"
+    ],
+    "inspected": "2026-11-24",
+    "scope": "Deterministic portable_torch GALE, no TE/plus; full fixed xyz replicated to retain whole-geometry neighbor semantics; activations sharded; global condition tokens replicated without SUM",
+    "runtime": "Existing PyTorch 2.6+ distributed APIs, no ShardTensor/DTensor dependency; X203 validation required"
   }
 }

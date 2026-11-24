@@ -29,6 +29,8 @@ def context_slices(module,x,size):
         value,total=recompute(aggregate,part)
         numerator=value if numerator is None else numerator+value
         normalizer=total if normalizer is None else normalizer+total
+    from .domain_parallel import domain_sum
+    numerator=domain_sum(module,numerator);normalizer=domain_sum(module,normalizer)
     return numerator/(normalizer[...,None]+1e-2)
 
 
@@ -46,6 +48,8 @@ def gale_attention(module,inputs,context,size):
             value,total=recompute(aggregate,part)
             numerator=value if numerator is None else numerator+value
             normalizer=total if normalizer is None else normalizer+total
+        from .domain_parallel import domain_sum
+        numerator=domain_sum(module,numerator);normalizer=domain_sum(module,normalizer)
         slices=numerator/(normalizer[...,None]+1e-2)
         attended=module._compute_slice_attention_sdpa(slices)
         if context is not None:

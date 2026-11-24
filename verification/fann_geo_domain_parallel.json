@@ -1,0 +1,48 @@
+{
+  "validation_date": "2026-11-24",
+  "gpu_used": false,
+  "cpu_runtime": {
+    "world_size": 4,
+    "torch": "2.5.1+cu124",
+    "backend": "gloo",
+    "device": "cpu",
+    "results": [
+      {
+        "amp": "off",
+        "passed": true,
+        "max_output_abs_error": 7.152557373046875e-07,
+        "gradient_relative_l2_error": 1.4566454353825975e-07,
+        "max_parameter_update_abs_error": 6.705522537231445e-07
+      },
+      {
+        "amp": "bf16",
+        "passed": true,
+        "max_output_abs_error": 0.01171875,
+        "gradient_relative_l2_error": 0.004189190920442343,
+        "max_parameter_update_abs_error": 0.00019981805235147476
+      }
+    ]
+  },
+  "regression": {
+    "tests": 5,
+    "seconds": 62.922,
+    "result": "passed",
+    "coverage": [
+      "two data groups x two domain ranks gradient/Adam parity with complete-case DDP",
+      "unequal node counts and inactive tail domain group",
+      "validation/test count once per case",
+      "exact same-topology checkpoint resume",
+      "fixed-global-batch scaling controller",
+      "existing ordinary scaling and old single-GPU checkpoint compatibility"
+    ]
+  },
+  "submission_checks": "mock sbatch: exclusive capability check and 8 nodes x 8 GPUs, domain_size4, 16 data replicas, lr1e-4/default betas/fresh five epochs",
+  "cluster_status": "X203/64-GPU execution not performed; run submit_fann_geo_domain_check.sh first",
+  "constraints": [
+    "whole CPU sample and coordinates remain replicated",
+    "validation gathers full output",
+    "fixed non-differentiable xyz",
+    "random sampler, portable_torch non-TE/non-plus backend",
+    "domain_size is immutable on resume"
+  ]
+}

@@ -143,4 +143,4 @@ POD 验证集泄漏、U-Net 曲面采样/反归一化/背景输入、逐样本�
 
 ## faNN 正式训练
 
-faNN 的 epoch 训练、验证选优、调度早停、完整续训、独立测试及 Slurm 提交见 [正式训练说明](docs/fann_formal_training.md)。一键入口为 `bash scripts/submit_fann_formal.sh`。默认 full 数据模式使用全部节点，但当前每模型仍是单卡训练，未实现跨卡域并行；整域X203显存和性能需要实测。旧 `run_fann.py --smoke` 保留为局部接口调试入口。
+faNN 的 epoch 训练、验证选优、调度早停、完整续训、独立测试及 Slurm 提交见 [正式训练说明](docs/fann_formal_training.md)。一键入口为 `bash scripts/submit_fann_formal.sh`。默认 full 数据模式使用全部节点；神经模型支持多节点数据并行，GeoTransolver另提供实验性网格域并行（见正式训练说明中的4卡检查及8节点入口），X203域并行显存与性能仍需集群实测。旧 `run_fann.py --smoke` 保留为局部接口调试入口。

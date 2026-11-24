@@ -424,6 +424,10 @@ class GeometricFeatureProcessor(nn.Module):
                     f"got {key_features.ndim}D tensor with shape {tuple(key_features.shape)}"
                 )
 
+        if hasattr(self,'domain'):
+            from .domain_parallel import neighborhood
+            return neighborhood(self,query_points,key_features)
+
         chunk=getattr(self,'node_chunk_size',0)
         if chunk:
             points=query_points[0]

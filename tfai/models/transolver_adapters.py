@@ -77,6 +77,10 @@ class GeoTransolver(nn.Module):
     def forward(self,data):
         outputs=[]
         for x in graph_features(data,self.input_dim):
+            domain=getattr(self,'domain',None)
+            if domain is not None:
+                domain.full_xyz=x[:,:3].contiguous()
+                x=domain.select(x)
             xyz=x[:,:3].unsqueeze(0)
             conditions=x[:1,-2:].unsqueeze(0)
             if not torch.allclose(x[:,-2:],x[:1,-2:].expand(x.shape[0],-1)):
@@ -88,4 +92,7 @@ class GeoTransolver(nn.Module):
             with torch.autograd.graph.save_on_cpu(pin_memory=False) if offload else nullcontext():
                 outputs.append(self.model(x[:,:-2].unsqueeze(0),local_positions=xyz,
                     global_embedding=conditions,geometry=xyz).squeeze(0))
-        return torch.cat(outputs,dim=0)
+        result=torch.cat(outputs,dim=0)
+        if getattr(self,'domain',None) is not None and not self.training:
+            result=self.domain.gather(result)
+        return result

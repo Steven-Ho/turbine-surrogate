@@ -87,21 +87,28 @@ def dummy_input(model,device):
     if model.name=='UNet':
         return (torch.zeros(1,model.input_dim+1,model.grid,model.grid,model.grid,device=device),
                 torch.zeros(1,1,1,1,3,device=device))
-    return Data(x=torch.zeros(8,model.input_dim,device=device))
+    domain=getattr(model.net,'domain',None)
+    nodes=max(8,domain.size) if domain else 8
+    return Data(x=torch.zeros(nodes,model.input_dim,device=device))
 
 
 def distributed_evaluate(model,norm,manifest,split,device,folder=None,near_wall=.001,stop_requested=lambda:False):
     rank=dist.get_rank();world=dist.get_world_size();store=store_for(manifest,split)
+    domain=getattr(model.net,'domain',None)
+    data_world=domain.data_size if domain else world
+    data_rank=domain.data_rank if domain else rank
     sync_buffers(model);model.eval();totals=np.zeros(34,np.float64);rows=[]
-    for start in range(0,len(store),world):
-        index=start+rank
+    for start in range(0,len(store),data_world):
+        index=start+data_rank
         if index<len(store):
             output=None if folder is None else Path(folder)/f'rank_{rank:05d}'/f'case_{index:05d}'
+            if domain and domain.rank!=0:output=None
             metric=evaluate(model,norm,[store[index]],device,output=output,near_wall=near_wall,return_statistics=True)
             s=metric['statistics']
-            totals+=np.r_[s['sse'],s['absolute'],s['total'],s['square'],s['near_sse'],
+            continue_totals=domain is None or domain.rank==0
+            if continue_totals:totals+=np.r_[s['sse'],s['absolute'],s['total'],s['square'],s['near_sse'],
                           s['normalized_sse'],s['count'],s['near_count'],1]
-            rows.extend(metric['samples'])
+            if continue_totals:rows.extend(metric['samples'])
         if stopped(stop_requested(),device):return None
     tensor=torch.tensor(totals,dtype=torch.float64,device=device);dist.all_reduce(tensor)
     values=tensor.cpu().numpy();sse,absolute,total,square,near_sse=np.split(values[:30],5)
@@ -141,8 +148,15 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     if name not in SUPPORTED:raise ValueError('Unsupported DDP model: '+name)
     if checkpoint_every<1:raise ValueError('Checkpoint interval must be positive')
     config=execution_config(name,config)
-    manual=name in GRAPH_MODELS
-    if manual and config.get('graph_execution')!='bounded':raise ValueError('Graph-model DDP requires --graph-execution bounded')
+    domain=None
+    if config.get('domain_size',1)>1:
+        if name!='GeoTransolver' or config.get('sampler','random')!='random':raise ValueError('Domain parallelism requires GeoTransolver/random sampling')
+        from tfai.models._vendor.geotransolver2.domain_parallel import Domain
+        domain=Domain(config['domain_size'])
+    data_world=domain.data_size if domain else world
+    data_rank=domain.data_rank if domain else rank
+    manual=name in GRAPH_MODELS or domain is not None
+    if name in GRAPH_MODELS and config.get('graph_execution')!='bounded':raise ValueError('Graph-model DDP requires --graph-execution bounded')
     last_path=folder/'last.pt';best_path=folder/'best.pt'
     if not resume and (last_path.exists() or best_path.exists()):raise ValueError('Existing run; use --resume or a new output directory')
     if resume and not last_path.exists():raise ValueError('No last.pt to resume')
@@ -157,6 +171,11 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     dist.broadcast_object_list(norm_packet,src=0);norm=Normalizer.from_state(norm_packet[0])
     set_global_seed(config['seed'])
     model=build_model(name,[],norm,config,state=saved['state_dict'] if saved else None).to(device)
+    if domain:
+        if not model.net.model.__class__.__module__.startswith('tfai.models._vendor.geotransolver2'):raise ValueError('Domain mode requires the portable_torch backend')
+        if getattr(model.net.model,'node_chunk_size',0)<1:raise ValueError('Domain mode requires positive node chunking')
+        if not getattr(model.net,'model',None):raise ValueError('Domain mode needs portable GeoTransolver')
+        domain.attach(model.net)
     if manual:
         for parameter in model.parameters():dist.broadcast(parameter.data,src=0)
         sync_buffers(model);ddp=None
@@ -215,7 +234,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
     def wants_stop():return stop_local or (folder/'STOP').exists() or (stop_file is not None and Path(stop_file).exists())
     def status(state,**extra):
         if rank==0:atomic_json({'state':state,'model':name,'completed_epochs':epoch,'global_step':global_step,
-                               'position':position,'world_size':world,'scope':manifest['scope'],**extra},folder/'status.json')
+                               'position':position,'world_size':world,'domain_size':config.get('domain_size',1),'data_replicas':data_world,'scope':manifest['scope'],**extra},folder/'status.json')
     def save(path):
         if affinity:append_records(folder,rank,sampling_records)
         timing_start=timing.begin()
@@ -228,7 +247,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 'completed_epochs':epoch,'position':position,'global_step':global_step,'best_score':best,
                 'early_stopping_counter':bad,'history':history,'pending_loss_sum':pending_sum,'pending_elements':pending_count,
                 'rng_state':states[0],'training_seconds':elapsed+time.perf_counter()-started,
-                'distributed_state':{'world_size':world,'rng_states':states,'global_batch_cases':world,
+                'distributed_state':{'world_size':world,'rng_states':states,'global_batch_cases':data_world,'domain_size':config.get('domain_size',1),
                                      'batch_norm':'local BatchNorm; rank0 buffers broadcast'},
                 'execution_runtime':{'torch_interop_threads':torch.get_num_interop_threads(),'ddp_backend':dist.get_backend(),'gradient_sync':'case_allreduce' if manual else 'native_ddp',
                                      'transolver_chunk':getattr(model.net,'chunk_size',None),
@@ -250,12 +269,13 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('interrupted',**extra)
         return {'state':'interrupted','global_step':global_step,'world_size':world,**extra}
     try:
-        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
+        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {data_world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
+        if domain and rank==0:print(f'Geo domain parallel: domain_size={domain.size} data_groups={data_world} global_batch<={data_world}; portable SUM collectives, replicated coordinates',flush=True)
         status('training');save(last_path)
         while epoch<config['epochs'] and bad<config['patience']:
             order=torch.randperm(len(train),generator=torch.Generator().manual_seed(config['seed']+epoch)).tolist()
             batches=(geometry_batches(geometry_keys,world,config['seed'],epoch) if affinity else
-                     [order[start:start+world]+[None]*max(0,start+world-len(order)) for start in range(0,len(order),world)])
+                     [order[start:start+data_world]+[None]*max(0,start+data_world-len(order)) for start in range(0,len(order),data_world)])
             while position<len(order):
                 if stopped(wants_stop() or (max_updates is not None and updates>=max_updates),device):return interrupted()
                 model.train()
@@ -265,8 +285,8 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 query_trace.reset(profiling)
                 source=None
                 phase_times={};phase_start=timing.begin(profiling);profile_start=phase_start
-                end=min(position+world,len(order));batch_cases=end-position
-                batch=batches[position//world];sample_index=batch[rank];active=sample_index is not None
+                end=min(position+data_world,len(order));batch_cases=end-position
+                batch=batches[position//data_world];sample_index=batch[data_rank];active=sample_index is not None
                 before_queries=query_counts(model) if affinity else None
                 batch_rng=local_rng(device) if manual else None;aborted=False
                 global_elements=sum(manifest['splits']['train'][index]['nodes']*6 for index in batch if index is not None)
@@ -281,17 +301,24 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                         aborted=value is None
                         squared=torch.tensor(0. if aborted else value*elements,device=device,dtype=torch.float64)
                     else:
-                        if manual:
+                        if manual and domain is None:
                             prediction=model.graph_executor.graph_unet(model,norm,sample,device)
                         else:
                             inputs=prepare_input(model,norm,sample,device)
                             phase_start=timing.mark(phase_times,'prepare_input',phase_start)
-                            prediction=ddp(inputs);del inputs
+                            prediction=(model(inputs) if domain else ddp(inputs));del inputs
                         phase_start=timing.mark(phase_times,'forward',phase_start)
                         target=norm.target(sample,device)
+                        if domain:
+                            target=domain.select(target);elements=target.numel()
                         if prediction.shape!=target.shape:raise ValueError('Output shape mismatch')
                         squared=(prediction-target).square().sum()
                         del target
+                elif domain:
+                    # Every member of this idle domain group follows the same
+                    # forward/backward collectives, contributing zero gradient.
+                    prediction=model(dummy_input(model,device))
+                    squared=prediction.sum()*0.;elements=0
                 elif manual:
                     squared=torch.zeros((),device=device);elements=0
                 else:
@@ -310,7 +337,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 query_trace.phase='backward'
                 if not (manual and name in ('GCN','Graph_Transformer')):
                     loss=squared*(world/aggregate[1])
-                    if active or not manual:loss.backward()
+                    if active or not manual or domain:loss.backward()
                 phase_start=timing.mark(phase_times,'backward_with_ddp_sync' if not manual else 'backward',phase_start)
                 if manual:mean_case_gradients(model)
                 phase_start=timing.mark(phase_times,'manual_gradient_sync',phase_start)
@@ -319,12 +346,12 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 phase_start=timing.mark(phase_times,'clip_optimizer',phase_start)
                 pending_sum+=float(aggregate[0]);pending_count+=int(aggregate[1])
                 if not (manual and name in ('GCN','Graph_Transformer')):
-                    if active or not manual:del prediction
+                    if active or not manual or domain:del prediction
                     del loss
                 del squared
                 if active:del sample
-                if rank==0 and should_log(math.ceil(position/world),math.ceil(len(train)/world),interval):
-                    print(f'{name} DDP epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/world)}/{math.ceil(len(train)/world)} step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
+                if rank==0 and should_log(math.ceil(position/data_world),math.ceil(len(train)/data_world),interval):
+                    print(f'{name} DDP epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/data_world)}/{math.ceil(len(train)/data_world)} step={global_step} epoch_cases={position}/{len(train)} batch_cases={batch_cases} loss={float(aggregate[0]/aggregate[1]):.7g} rank0_seconds={time.perf_counter()-step_start:.3f}',flush=True)
                 if affinity:
                     after_queries=query_counts(model)
                     sampling_records.append({'step':global_step,'epoch':epoch+1,'rank':rank,'active':active,
@@ -370,7 +397,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
                 'selection':'minimum complete-validation normalized MSE; test only after selection',
                 'environment':{'torch':torch.__version__,'device':str(device),'ddp_backend':dist.get_backend(),'world_size':world,
                                'gpu':torch.cuda.get_device_name(device) if device.type=='cuda' else None,
-                               'slurm_nodes':os.environ.get('SLURM_NNODES'),'global_batch_cases':world,
+                               'slurm_nodes':os.environ.get('SLURM_NNODES'),'global_batch_cases':data_world,'domain_size':config.get('domain_size',1),
                                'batch_norm':'local BatchNorm; rank0 buffers broadcast',
                                'gradient_sync':'case_allreduce' if manual else 'native_ddp'}}
         if rank==0:atomic_json(report,folder/'report.json')

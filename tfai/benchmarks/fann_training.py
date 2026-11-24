@@ -278,9 +278,9 @@ def assert_resume_config(old,new):
         if isinstance(key,tuple) and key and key[0]=='graph_execution_schema':
             old.setdefault('graph_execution_schema',old.pop(key))
     new=dict(new)
-    for key,default in [('beta1',0.9),('beta2',0.999)]:
+    for key,default in [('beta1',0.9),('beta2',0.999),('domain_size',1)]:
         old.setdefault(key,default);new.setdefault(key,default)
-    immutable=['beta1','beta2','seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
+    immutable=['domain_size','beta1','beta2','seed','learning_rate','lr_patience','lr_factor','lr_threshold','lr_cooldown','min_lr',
                'patience','grid','rank','scale','pod_geometry_bins','streaming_pod','grad_clip','near_wall','geo_neighbor_policy','graph_execution','graph_owner_nodes','graph_edge_chunk','graph_execution_schema','amp','sampler']
     mismatches=[key for key in immutable if old.get(key)!=new.get(key)]
     if mismatches:raise ValueError('Resume configuration changed: '+','.join(mismatches))

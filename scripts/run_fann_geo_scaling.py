@@ -20,7 +20,7 @@ STEP=re.compile(r'GeoTransolver DDP .*? step=(\d+) epoch_cases=\d+/\d+ batch_cas
 
 def write_report(output,report):
     atomic_json(report,output/'report.json')
-    columns=['gpus','nodes','gpus_per_node','speedup_vs_8gpu','efficiency_vs_8gpu','measured_cases','wall_seconds','cases_per_second','speedup','efficiency',
+    columns=['domain_size','data_replicas','gpus','nodes','gpus_per_node','speedup_vs_8gpu','efficiency_vs_8gpu','measured_cases','wall_seconds','cases_per_second','speedup','efficiency',
              'mean_rank0_seconds','median_rank0_seconds']
     with (output/'summary.csv').open('w',newline='') as stream:
         writer=csv.DictWriter(stream,fieldnames=columns);writer.writeheader()
@@ -50,6 +50,7 @@ def main():
     parser.add_argument('--splits',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--gpu-counts',nargs='+',type=int,default=[1,2,4,8])
+    parser.add_argument('--domain-sizes',nargs='+',type=int,help='One domain size per GPU count; defaults to all ones')
     parser.add_argument('--nodes',type=int,default=1)
     parser.add_argument('--master-addr')
     parser.add_argument('--master-port',type=int,default=29500)
@@ -62,13 +63,17 @@ def main():
     parser.add_argument('--device',choices=['cuda','cpu'],default='cuda')
     parser.add_argument('--backend',default='nccl')
     args=parser.parse_args()
+    args.domain_sizes=args.domain_sizes or [1]*len(args.gpu_counts)
+    if len(args.domain_sizes)!=len(args.gpu_counts) or any(d<1 or p%d for p,d in zip(args.gpu_counts,args.domain_sizes)):parser.error('Domain sizes must divide their corresponding GPU counts')
+    data_counts=[p//d for p,d in zip(args.gpu_counts,args.domain_sizes)]
+    if args.reference_report and any(d!=1 for d in args.domain_sizes):parser.error('Domain comparisons need their own fixed-batch reference')
     if args.profile_steps<0:parser.error('profile-steps must be nonnegative')
     if args.reference_report and (args.profile_steps or args.comm_diagnostics):parser.error('Diagnostic timings cannot be compared to a throughput reference')
     if not args.gpu_counts or len(set(args.gpu_counts))!=len(args.gpu_counts) or any(p<1 for p in args.gpu_counts):parser.error('Counts must be unique and positive')
     if args.nodes<1 or any(p%args.nodes for p in args.gpu_counts):parser.error('GPU counts must be divisible by node count')
     if args.nodes>1 and not args.master_addr:parser.error('Multi-node launch requires --master-addr')
     if min(args.warmup_cases,args.measure_cases,args.threads)<1:parser.error('Budgets and threads must be positive')
-    if any(args.warmup_cases%p or args.measure_cases%p for p in args.gpu_counts):parser.error('Both case budgets must be divisible by every process count')
+    if any(args.warmup_cases%p or args.measure_cases%p for p in data_counts):parser.error('Both case budgets must be divisible by every process count')
     if args.device=='cuda' and (not torch.cuda.is_available() or max(args.gpu_counts)//args.nodes>torch.cuda.device_count()):raise RuntimeError('Insufficient visible GPUs; no CPU fallback')
     args.output.mkdir(parents=True,exist_ok=False)
     report={'state':'running','profile_steps':args.profile_steps,'comm_diagnostics':args.comm_diagnostics,
@@ -76,7 +81,7 @@ def main():
             'measure_cases':args.measure_cases,'results':[],'torch_version':torch.__version__,
             'host':socket.gethostname(),'job_id':os.environ.get('SLURM_JOB_ID'),
             'gpu_name':torch.cuda.get_device_name(0) if args.device=='cuda' else None,
-            'note':'Same shuffled case prefix, seed42 fresh runs; global batch and optimizer trajectory differ. Later runs may benefit from OS file cache.'}
+            'domain_sizes':args.domain_sizes,'note':'Same shuffled case prefix, seed42 fresh runs; global batch = GPUs/domain_size. Compare equal data_replicas for matched updates. Later runs may benefit from OS file cache.'}
     write_report(args.output,report)
     try:
         manifest=load_startup(args.splits,progress=lambda message:print(message,flush=True))
@@ -90,9 +95,10 @@ def main():
             if reference.get('state')!='complete':raise ValueError('Reference report is not complete')
             if not any(row['gpus']==8 for row in reference.get('results',[])):raise ValueError('Reference must include an 8-GPU result')
             report['reference_report']=str(args.reference_report)
-        for count in args.gpu_counts:
+        for count,domain_size in zip(args.gpu_counts,args.domain_sizes):
             folder=args.output/f'gpus_{count}';folder.mkdir()
-            updates=total_cases//count;warm_steps=args.warmup_cases//count
+            data_replicas=count//domain_size
+            updates=total_cases//data_replicas;warm_steps=args.warmup_cases//data_replicas
             env=dict(os.environ,PYTHONUNBUFFERED='1',OMP_NUM_THREADS=str(args.threads),
                 MKL_NUM_THREADS=str(args.threads),OPENBLAS_NUM_THREADS=str(args.threads),
                 FANN_DDP_SAMPLER='random',FANN_PROFILE_STEPS=str(args.profile_steps),TURBINE_FANN_PROFILE_STEPS='0',FANN_LOG_EVERY='1',
@@ -107,7 +113,7 @@ def main():
             training=['scripts/train_fann_ddp.py','--models','GeoTransolver','--splits',str(args.splits),
                 '--output',str(folder),'--device',args.device,'--backend',args.backend,'--amp','bf16',
                 '--sampler','random','--scale','small','--seed','42','--threads',str(args.threads),'--epochs','400',
-                '--checkpoint-every',str(updates+1),'--max-updates',str(updates)]
+                '--domain-size',str(domain_size),'--checkpoint-every',str(updates+1),'--max-updates',str(updates)]
             if args.nodes==1:
                 command=[sys.executable,'-m','torch.distributed.run','--standalone',f'--nproc_per_node={count}',*training]
             else:
@@ -135,7 +141,7 @@ def main():
             if len(records)!=updates or sum(row['cases'] for row in measured)!=args.measure_cases or measure_start is None or measure_end is None:
                 raise RuntimeError('Incomplete or inconsistent training-step records')
             wall=measure_end-measure_start
-            report['results'].append({'gpus':count,'nodes':args.nodes,'gpus_per_node':count//args.nodes,'communication_summary':communication_summary,'measured_cases':args.measure_cases,'wall_seconds':wall,
+            report['results'].append({'domain_size':domain_size,'data_replicas':data_replicas,'gpus':count,'nodes':args.nodes,'gpus_per_node':count//args.nodes,'communication_summary':communication_summary,'measured_cases':args.measure_cases,'wall_seconds':wall,
                 'cases_per_second':args.measure_cases/wall,
                 'mean_rank0_seconds':statistics.mean(row['rank0_seconds'] for row in measured),
                 'median_rank0_seconds':statistics.median(row['rank0_seconds'] for row in measured)})
