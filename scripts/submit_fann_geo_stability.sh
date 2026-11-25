@@ -7,6 +7,8 @@ if [[ ! "$nodes" =~ ^[1-9][0-9]*$ ]]; then echo 'FANN_STABILITY_NODES must be po
 export FANN_RUN_ROOT="${FANN_STABILITY_RUN_ROOT:-runs/fann_geo_stability_$(date +%Y%m%d_%H%M%S)}"
 export FANN_MAX_EPOCHS_PER_RUN="${FANN_STABILITY_EPOCHS:-5}"
 if [[ ! "$FANN_MAX_EPOCHS_PER_RUN" =~ ^[1-9][0-9]*$ ]]; then echo 'FANN_STABILITY_EPOCHS must be a positive integer' >&2; exit 2; fi
+# A formal long run disables the per-launch short-run budget.
+if [[ "${FANN_STABILITY_LONG_RUN:-0}" == 1 ]]; then export FANN_MAX_EPOCHS_PER_RUN=0; fi
 # Keep the checkpoint's full training budget so this run can resume to 400 later.
 export FANN_EPOCHS=400 FANN_RESUME="${FANN_STABILITY_RESUME:-0}" FANN_DDP_GPUS_PER_NODE=8
 export FANN_DOMAIN_SIZE="${FANN_STABILITY_DOMAIN_SIZE:-1}"
@@ -26,7 +28,7 @@ unset NCCL_DEBUG NCCL_DEBUG_SUBSYS NCCL_DEBUG_FILE MCCL_DEBUG MCCL_DEBUG_SUBSYS 
 unset TORCH_DISTRIBUTED_DEBUG TORCH_CPP_LOG_LEVEL
 # Resource-only snapshots do not enable library logs or per-step GPU sync.
 export FANN_RUNTIME_SNAPSHOT_DIR="$FANN_RUN_ROOT/GeoTransolver/runtime"
-printf 'Exclusive Geo stability: %s nodes x 8 GPUs, %s complete epochs, output=%s\n' "$nodes" "$FANN_MAX_EPOCHS_PER_RUN" "$FANN_RUN_ROOT"
+printf 'Exclusive Geo stability: %s nodes x 8 GPUs, epoch_budget=%s (0=to total 400), output=%s\n' "$nodes" "$FANN_MAX_EPOCHS_PER_RUN" "$FANN_RUN_ROOT"
 printf 'Learning rate: %s (resume=%s, no warmup)\n' "$FANN_LEARNING_RATE" "$FANN_RESUME"
 sbatch --exclusive --array=6 --nodes="$nodes" --ntasks-per-node=1 --gres=gpu:8 \
  --cpus-per-task=32 --mem=768G --signal=B:USR1@900 --export=ALL \

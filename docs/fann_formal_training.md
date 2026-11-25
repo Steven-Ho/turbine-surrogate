@@ -942,3 +942,23 @@ bash scripts/submit_fann_geo_domain_8nodes.sh
 64张卡按连续rank组成16组，每组4卡，同一组留在一个8卡节点内，每节点2组。固定global_batch最多16个算例，250个训练样本每轮16步，尾批10例；与原2节点16卡baseline具有相同的算例顺序、更新次数和节点加权损失定义。默认新开5完整epoch，checkpoint总预算400；lr=1e-4、betas=(0.9,0.999)、BF16、关闭CPU卸载，其他稳定性设置不变。可设FANN_DOMAIN_EPOCHS改变短测轮数。结果为runs/fann_geo_domain4_8nodes_<时间>/GeoTransolver，日志为logs/fann_geo_dp16dom4_<job>_6.out/.err。rank0打印domain_size=4、data_groups=16，检查点保存物理world_size=64和global_batch_cases=16。续训配置必须保持domain_size，旧未标注此项的检查点按1解释。
 
 首版限制：固定几何坐标在组内各卡复制，用完整几何邻居表查询并只将本分片的邻居索引传入GPU，保留跨分片邻居和既有磁盘缓存键；无需动态特征halo。整算例CPU数据读取与坐标尚未分摊，同组4rank仍分别读取同一算例；这可能使I/O成为瓶颈，不能据4卡数量承诺4倍加速。验证时组内汇总预测并仅由组长计入统计和导出，内存占用仍包含整域输出。当前仅支持GeoTransolver、random采样、portable_torch非TE/非plus路径，节点数至少为domain_size；chunk必须为正。CPU已覆盖混合并行梯度、空闲组尾批、完整验证、检查点精确续训及4分片FP32/BF16数值对照。尚未运行X203或64卡实测。
+
+
+## 8节点域并行正式续训至400轮
+
+1990式短训完成后，在项目根目录运行：
+
+```bash
+git pull
+bash scripts/submit_fann_geo_domain_long.sh
+```
+
+标准库预检会自动寻找唯一的 `runs/fann_geo_domain4_8nodes_*` 已安全中断实验，检查64rank、domain_size4、history/检查点文件齐全；不导入Torch、不重新扫描准备数据。存在多个候选时明确指定：
+
+```bash
+bash scripts/submit_fann_geo_domain_long.sh --run-root runs/fann_geo_domain4_8nodes_<原时间>
+```
+
+同一原目录续训，已完成5轮则剩余最多395轮；保留Adam、调度器、RNG和历史状态。固定8节点64卡、16组×4卡、global_batch<=16、BF16、small、关闭CPU卸载、lr配置1e-4和默认betas；加载后以原检查点实际优化器/调度器状态为准。每batch输出时间日志，每10步及每轮保存检查点。FANN_MAX_EPOCHS_PER_RUN=0，清除FANN_MAX_UPDATES，不会再因短训预算停止；训练总预算400轮，原早停60轮和降学习率策略继续生效，正常训练结束会做独立测试集评分和预测导出。
+
+默认独占8节点，每节点8卡、32CPU、768G主存，墙钟申请24小时，提前15分钟USR1保存退出。可 `export FANN_DOMAIN_TIME_LIMIT=1-06:00:00` 调整申请时长（需符合分区限制），其他Slurm参数可追加到命令尾。日志为logs/fann_geo_dom4_long_<job>_6.out/.err，结果继续写原实验。按1990短训估计剩余395轮约22小时11分，不含排队、初始化和最终测试/写盘；短训外推不保证长期24小时内完成。如果因墙钟提前安全停止，可对原目录重复提交本入口继续到总400轮；运行中或已完成的目录会被提交预检拒绝。
