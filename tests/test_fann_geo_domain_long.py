@@ -38,3 +38,25 @@ class DomainLongSubmissionTests(unittest.TestCase):
             failed=subprocess.run(['bash','scripts/submit_fann_geo_domain_long.sh','--run-root',str(root/'run')],
                                   cwd=ROOT,env=env,capture_output=True,text=True)
             self.assertNotEqual(failed.returncode,0);self.assertFalse((root/'trace').exists())
+
+    def test_base16_resume_keeps_model_and_topology(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);folder=root/'run/GeoTransolver';folder.mkdir(parents=True)
+            for name in ['last.pt','best.pt']:(folder/name).touch()
+            (folder/'status.json').write_text(json.dumps(dict(model='GeoTransolver',world_size=128,domain_size=8,
+                state='interrupted',completed_epochs=5,position=0)))
+            (folder/'history.json').write_text(json.dumps([dict(epoch=i,lr=1e-4) for i in range(1,6)]))
+            stub=root/'sbatch';stub.write_text('#!/usr/bin/env python3\nimport os,json,sys\nfrom pathlib import Path\nPath(os.environ["TRACE"]).write_text(json.dumps({"env":dict(os.environ),"args":sys.argv[1:]}))\n');stub.chmod(0o755)
+            env=dict(os.environ,PATH=str(root)+':'+os.environ['PATH'],TRACE=str(root/'trace'),
+                FANN_STABILITY_SCALE='small',FANN_STABILITY_LONG_RUN='0',FANN_MAX_UPDATES='20')
+            result=subprocess.run(['bash','scripts/submit_fann_geo_base_16nodes_long.sh','--run-root',str(root/'run')],
+                                  cwd=ROOT,env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            report=json.loads((root/'trace').read_text());e=report['env'];a=report['args']
+            self.assertEqual(e['FANN_SCALE'],'base');self.assertEqual(e['FANN_DOMAIN_SIZE'],'8')
+            self.assertEqual(e['FANN_RESUME'],'1');self.assertEqual(e['FANN_MAX_EPOCHS_PER_RUN'],'0')
+            self.assertEqual(e['FANN_EPOCHS'],'400');self.assertNotIn('FANN_MAX_UPDATES',e)
+            self.assertIn('--nodes=16',a);self.assertIn('--exclusive',a)
+            self.assertIn('--job-name=fann_geo_base16_long',a)
+            self.assertEqual(e['FANN_RUN_ROOT'],str(root/'run'))
+            self.assertIn('remaining<=395',result.stdout)

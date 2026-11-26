@@ -1016,3 +1016,19 @@ bash scripts/submit_fann_geo_base_16nodes.sh
 8节点输出runs/fann_geo_base_8nodes_dom4_<时间>/GeoTransolver，日志logs/fann_geo_base8_<job>_6.out/.err；16节点对应runs/fann_geo_base_16nodes_dom8_<时间>/GeoTransolver和logs/fann_geo_base16_<job>_6.out/.err。可分别用FANN_BASE_8_RUN_ROOT、FANN_BASE_16_RUN_ROOT指定独立新目录；不复用small权重。完成5轮验证后正常保存退出，不执行最终测试集导出，checkpoint总预算仍为400，后续可以用匹配base/domain_size的配置续训。
 
 比较含验证和保存的完整epoch墙钟耗时、单步尾延迟、逐rank显存及主存峰值；不能用参数量倍率代替实测。两个方案batch/样本顺序/更新次数相同，BF16的归约顺序会带来数值差异。CPU已通过base八域分片的FP32/BF16预测、梯度、一次Adam更新和验证all_gather检查；X203 base显存/吞吐及16节点128卡运行尚需这次实测。
+
+
+## base模型16节点续训至400轮
+
+2006的base/16节点短训完成后运行：
+
+```bash
+git pull
+bash scripts/submit_fann_geo_base_16nodes_long.sh
+```
+
+自动定位唯一已安全中断的runs/fann_geo_base_16nodes_dom8_*实验，核对128rank/domain_size8和历史记录；不导入Torch、不重新登记数据。多个候选时追加`--run-root runs/fann_geo_base_16nodes_dom8_<原时间>`，也可沿用FANN_BASE_16_RUN_ROOT。标准续训在计算节点加载检查点时核验完整配置。
+
+固定base、16节点128卡、16组×8卡、batch<=16、BF16、关闭CPU卸载，恢复原Adam、lr调度器、历史和RNG。从第5轮续训则剩余最多395轮，总计最多400轮；不更改本次原调度/早停配置，也不导入small权重。禁用5轮短训预算及max_updates，正常完成后执行验证/测试评分和预测导出。结果仍写原目录，日志为logs/fann_geo_base16_long_<job>_6.out/.err。
+
+默认独占16节点，申请24小时，每节点8卡/32CPU/768G主存。按2006实测平均184.4秒/轮，剩余395轮约20小时14分钟，另加初始化、最终测试和运行波动；时间限制可通过FANN_DOMAIN_TIME_LIMIT或提交命令尾部的--time覆盖。提前15分钟USR1请求安全保存，若因此中断，可对同一目录重复提交继续。CPU模拟提交已核对base与128rank/domain8、总轮数及预算设置，集群作业由用户执行命令后提交。
