@@ -999,3 +999,20 @@ bash scripts/submit_fann_visualize.sh \
 ```
 
 `--split validation`可改画验证集；`--output <新目录>`指定输出。原目录迁移后，可重复传`--path-map OLD=NEW`修正准备数据/预测路径。程序还会尝试将报告中失效的原预测绝对路径映射到当前模型目录的predictions/。请保留集群上原准备数据，否则仅凭预测NPZ无法恢复真值或坐标。
+
+
+## base模型：8节点与16节点同batch短训练
+
+两种方案从头训练5个完整epoch，分别为16数据组×4域卡（8节点64卡）和16数据组×8域卡（16节点128卡）。域组都留在同一节点内，全局batch均最多16；250例每轮16步，5轮80次更新，尾批10例。模型固定base（4层、hidden128、8头、64切片，798346参数），其余沿用small基准：seed42、lr1e-4、Adam betas=(0.9,0.999)、原plateau调度、BF16、关闭CPU卸载、32768节点块、512MiB CPU邻域缓存、random采样。先比较吞吐/显存，不同时改动学习率调度。
+
+```bash
+git pull
+bash scripts/submit_fann_geo_base_8nodes.sh
+bash scripts/submit_fann_geo_base_16nodes.sh
+```
+
+每项作业独占节点，每节点8卡、32CPU、768G内存，默认申请4小时；两个独立作业可排队或并行，若同时运行需要24节点192卡。标准提交参数可追加，例如尾部`--partition=...`。已有长训/续训/更新次数等实验残留变量会被覆盖或清除。
+
+8节点输出runs/fann_geo_base_8nodes_dom4_<时间>/GeoTransolver，日志logs/fann_geo_base8_<job>_6.out/.err；16节点对应runs/fann_geo_base_16nodes_dom8_<时间>/GeoTransolver和logs/fann_geo_base16_<job>_6.out/.err。可分别用FANN_BASE_8_RUN_ROOT、FANN_BASE_16_RUN_ROOT指定独立新目录；不复用small权重。完成5轮验证后正常保存退出，不执行最终测试集导出，checkpoint总预算仍为400，后续可以用匹配base/domain_size的配置续训。
+
+比较含验证和保存的完整epoch墙钟耗时、单步尾延迟、逐rank显存及主存峰值；不能用参数量倍率代替实测。两个方案batch/样本顺序/更新次数相同，BF16的归约顺序会带来数值差异。CPU已通过base八域分片的FP32/BF16预测、梯度、一次Adam更新和验证all_gather检查；X203 base显存/吞吐及16节点128卡运行尚需这次实测。

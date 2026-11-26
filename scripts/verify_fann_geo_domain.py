@@ -21,6 +21,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--device',choices=['cpu','cuda'],default='cuda')
     parser.add_argument('--backend',default='nccl')
+    parser.add_argument('--scale',choices=['small','base','large'],default='small')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args()
     torch.set_num_threads(1)
@@ -38,7 +39,7 @@ def main():
         results=[]
         for amp in ['off','bf16']:
             torch.manual_seed(42)
-            config={'model':{'scale':'small','geotransolver_backend':'portable_torch'}}
+            config={'model':{'scale':args.scale,'geotransolver_backend':'portable_torch'}}
             reference=GeoTransolver(config,6,6).to(device)
             sharded=GeoTransolver(config,6,6).to(device)
             sharded.load_state_dict(reference.state_dict())
@@ -87,7 +88,7 @@ def main():
             results.append(result)
             if dist.get_rank()==0:
                 print(f'Geo domain capability: {result}',flush=True)
-                atomic_json(dict(world_size=dist.get_world_size(),torch=torch.__version__,backend=dist.get_backend(),
+                atomic_json(dict(scale=args.scale,world_size=dist.get_world_size(),torch=torch.__version__,backend=dist.get_backend(),
                                  device=args.device,results=results),args.output/'capability.json')
             if not passed:raise RuntimeError(f'Domain capability/numerical check failed: {result}')
     finally:dist.destroy_process_group()

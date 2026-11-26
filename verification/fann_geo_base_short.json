@@ -1,0 +1,28 @@
+{
+  "validation": "CPU only; no local GPUs used",
+  "capability": {
+    "scale": "base",
+    "world_size": 8,
+    "torch": "2.5.1+cu124",
+    "backend": "gloo",
+    "device": "cpu",
+    "results": [
+      {
+        "amp": "off",
+        "passed": true,
+        "max_output_abs_error": 8.940696716308594e-07,
+        "gradient_relative_l2_error": 1.8199918372374668e-07,
+        "max_parameter_update_abs_error": 7.525086402893066e-07
+      },
+      {
+        "amp": "bf16",
+        "passed": true,
+        "max_output_abs_error": 0.013671875,
+        "gradient_relative_l2_error": 0.005912844091653824,
+        "max_parameter_update_abs_error": 0.00019984692335128784
+      }
+    ]
+  },
+  "submission": "mock sbatch passed for 8 and 16 nodes, 16 data replicas, five complete epochs, fresh base models, same optimizer settings, independent outputs",
+  "x203_status": "Not yet measured"
+}

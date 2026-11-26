@@ -269,7 +269,7 @@ def _train_ddp(name,manifest,config,folder,device,resume,max_updates,checkpoint_
         status('interrupted',**extra)
         return {'state':'interrupted','global_step':global_step,'world_size':world,**extra}
     try:
-        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {data_world} full cases, rank-local BatchNorm, no LR scaling; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
+        if rank==0:print(f'{name}: DDP world_size={world}, global_batch<= {data_world} full cases, rank-local BatchNorm, no LR scaling; scale={config["scale"]}; amp={config.get("amp","off")}; geo_activation_offload={getattr(model.net,"activation_offload",False)}; geo_node_chunk={getattr(getattr(model.net,"model",None),"node_chunk_size",None)}',flush=True)
         if domain and rank==0:print(f'Geo domain parallel: domain_size={domain.size} data_groups={data_world} global_batch<={data_world}; portable SUM collectives, replicated coordinates',flush=True)
         status('training');save(last_path)
         while epoch<config['epochs'] and bad<config['patience']:
