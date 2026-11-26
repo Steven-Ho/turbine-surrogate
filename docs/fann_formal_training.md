@@ -962,3 +962,40 @@ bash scripts/submit_fann_geo_domain_long.sh --run-root runs/fann_geo_domain4_8no
 同一原目录续训，已完成5轮则剩余最多395轮；保留Adam、调度器、RNG和历史状态。固定8节点64卡、16组×4卡、global_batch<=16、BF16、small、关闭CPU卸载、lr配置1e-4和默认betas；加载后以原检查点实际优化器/调度器状态为准。每batch输出时间日志，每10步及每轮保存检查点。FANN_MAX_EPOCHS_PER_RUN=0，清除FANN_MAX_UPDATES，不会再因短训预算停止；训练总预算400轮，原早停60轮和降学习率策略继续生效，正常训练结束会做独立测试集评分和预测导出。
 
 默认独占8节点，每节点8卡、32CPU、768G主存，墙钟申请24小时，提前15分钟USR1保存退出。可 `export FANN_DOMAIN_TIME_LIMIT=1-06:00:00` 调整申请时长（需符合分区限制），其他Slurm参数可追加到命令尾。日志为logs/fann_geo_dom4_long_<job>_6.out/.err，结果继续写原实验。按1990短训估计剩余395轮约22小时11分，不含排队、初始化和最终测试/写盘；短训外推不保证长期24小时内完成。如果因墙钟提前安全停止，可对原目录重复提交本入口继续到总400轮；运行中或已完成的目录会被提交预检拒绝。
+
+
+## 集群CPU端汇总及物理场可视化
+
+无需传输整个训练目录，也不需要GPU或Torch运行库。对已完成的域并行结果运行：
+
+```bash
+git pull
+bash scripts/submit_fann_visualize.sh
+```
+
+自动定位唯一的 `runs/fann_geo_domain4_8nodes_*/GeoTransolver/report.json`；多个候选时指定父运行目录或GeoTransolver目录：
+
+```bash
+bash scripts/submit_fann_visualize.sh \
+  --run-root runs/fann_geo_domain4_8nodes_<原时间>
+```
+
+提交单节点CPU作业，4CPU、32G主存、2小时上限，无GPU请求。日志在logs/fann_visualize_<job>.out/.err。依赖现有venv中的NumPy和Matplotlib；不导入tfai、Torch、VTK，不要求OpenGL或沐曦GPU运行库。登录节点只调用sbatch，绘图在计算节点运行。
+
+默认在原GeoTransolver目录下生成新的visual_summary_<时间>/，以及同名ZIP；最后一行打印可下载ZIP的完整路径。ZIP仅含HTML、PNG/PDF、CSV/JSON和代表算例的采样NPZ，不含训练检查点、完整预测或网格。下载该ZIP，解压后用浏览器打开index.html，或将ZIP传回用于进一步分析。
+
+包含内容：全量验证/测试的六场RMSE、MAE、R²及近壁RMSE；完整训练/验证loss与学习率；各物理场逐轮验证RMSE（若history存在）；默认从测试算例按相对六场RMSE排序选低/中/高三个算例，仅用于展示；每例对u/v/w/p/T/rho画真值、预测和带符号误差的同一几何薄层散点图，以及真值—预测密度图。真值和预测共享色标，颜色默认取1%–99%分位范围，误差色标为对称99%绝对误差范围，原始全量指标不截断。图为节点薄层的投影，不做穿过孔洞/固体区域的插值；该可视化不能替代全场或壁面评估。完整指标直接取自report.json，采样不参与重新估计全量精度。
+
+每个代表算例只读取坐标、标签、预测和原始节点编号；共享mesh_file只取节点编号，不加载体单元。逐例处理，不进行全数据集扫描/指纹校验，也不重新推理。仅对所绘制的预测/标签检查字段、形状和节点编号一致，避免错误配对。默认每例保存最多30000个全域采样点，薄层最多15000点。默认薄层为z方向包围盒中部、总厚度为该轴范围的1%；点太少时选距平面最近的节点并在报告注明实际厚度。
+
+可调整展示内容：
+
+```bash
+bash scripts/submit_fann_visualize.sh \
+  --run-root runs/fann_geo_domain4_8nodes_<原时间> \
+  --cases 3 --fields VelocityX Pressure Temperature \
+  --slice-axis z --slice-fraction 0.5 --slice-width 0.01 \
+  --max-points 30000 --slice-points 15000
+```
+
+`--split validation`可改画验证集；`--output <新目录>`指定输出。原目录迁移后，可重复传`--path-map OLD=NEW`修正准备数据/预测路径。程序还会尝试将报告中失效的原预测绝对路径映射到当前模型目录的predictions/。请保留集群上原准备数据，否则仅凭预测NPZ无法恢复真值或坐标。
