@@ -1,0 +1,21 @@
+{
+  "schema": "cr15-map-five-fields-v1",
+  "dataset_id": "cr15_stator_400_map3d_v1",
+  "coordinate_unit": "m",
+  "coordinate_multiplier": 1.0,
+  "coordinate_evidence": "Delivered MAP visualization CSV uses x~0.44 m, radius~0.326 m; do not apply CAD mm conversion to MAP output coordinates.",
+  "raw_field_order": ["static_pressure", "vx", "vy", "vz", "static_temperature", "turbulent_viscosity", "trans_gamma", "specific_heat_ratio"],
+  "target_names": ["VelocityX", "VelocityY", "VelocityZ", "Pressure", "Temperature"],
+  "target_raw_indices": [1, 2, 3, 0, 4],
+  "target_units": ["m/s", "m/s", "m/s", "Pa", "K"],
+  "boundary_names": ["inlet_total_pressure", "inlet_total_temperature", "inlet_flow_angle", "inlet_turbulence_intensity", "outlet_reference_static_pressure", "rotation_speed"],
+  "boundary_values": [2500000.0, 1850.0, 0.0, 0.014, 1314400.0, 0.0],
+  "boundary_units": ["Pa", "K", "deg", "dimensionless", "Pa", "rpm"],
+  "boundary_source": "Delivered dataset README.md section 2, uniform solver settings; not inferred from solved monitor quantities. Per-case native boundary files are not included in the local delivery.",
+  "blade_count": 42,
+  "input_policy": "Coordinates plus the declared constant boundary vector only. Design metadata and solved performance quantities are not automatic model inputs.",
+  "label_quality": "quasi_steady_not_convergence_certified",
+  "duplicate_coordinate_policy": "Retain all block nodes and interface copies; no deduplication or implied connectivity across blocks.",
+  "integer_flag_policy": "Retain raw values and presence mask without interpretation or node filtering.",
+  "normalization_policy": "Record coordinate bounds and target moments from train only; cached targets remain in physical units. Final scaling is a training-adapter decision."
+}

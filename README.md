@@ -144,3 +144,49 @@ POD 验证集泄漏、U-Net 曲面采样/反归一化/背景输入、逐样本�
 ## faNN 正式训练
 
 faNN 的 epoch 训练、验证选优、调度早停、完整续训、独立测试及 Slurm 提交见 [正式训练说明](docs/fann_formal_training.md)。一键入口为 `bash scripts/submit_fann_formal.sh`。默认 full 数据模式使用全部节点；神经模型支持多节点数据并行，GeoTransolver另提供实验性网格域并行（见正式训练说明中的4卡检查及8节点入口），X203域并行显存与性能仍需集群实测。旧 `run_fann.py --smoke` 保留为局部接口调试入口。
+
+
+## CR15 MAP数据准备（第1–3步）
+
+入口`scripts/prepare_cr15_map.py`使用已完成的`scripts/audit_cr15_map.py`报告，生成独立于faNN的CR15五场缓存；此处尚不接入训练，也不改动既定FANN_SPLITS。CPU依赖仅NumPy和标准库，不导入Torch/VTK，不需要GPU。
+
+集群运行时，`--root`沿用审计时的数据根目录，`--audit`为该次审计的输出目录（包含summary.json、eligible_A.csv）。使用新输出目录：
+
+```bash
+git pull
+bash scripts/submit_cr15_prepare.sh \
+  --root /实际路径/CR15_stator_400_MAP_results \
+  --audit /实际路径/已通过的审计报告目录 \
+  --output runs/cr15_prepared_v1 --workers 2
+```
+
+提交单节点CPU任务，4CPU、32G主存、6小时上限，日志logs/cr15_prepare_<job>.out/.err。若不经Slurm，可在有NumPy的CPU环境中直接运行同参数的`python scripts/prepare_cr15_map.py ...`。无需重新运行全库审计：读取原审计的source SHA256作为身份记录，不重复计算源文件哈希；转换过程仍检查当前读取的记录长度、形状、有限值、正压力/温度及通道声明，避免生成错位或损坏缓存。
+
+首轮仅A级，保持原train/validation/test/baseline划分。本机同版清单402例包含A级250例：train199、valid23、test26、baseline2；B级152例单独列入excluded_B.csv，不转换、不混入真值训练。基准2例单独转换但不进入训练/归一化。最终数量始终以集群实际清单和原审计一致性为准，不凭文件名或训练目录重新随机划分。
+
+输出包括：
+
+- eligible_A.csv / excluded_B.csv：仅身份、原划分及设计/网格质量元数据。
+- diagnostics_only.csv：原清单全部列，仅供诊断；其中已求解流量、压比、实际出口压力/温度不得作为输入。
+- samples/<sample>.npz：原始物理坐标float32、五场targets、输出名/单位、固定边界向量、块形状/偏移/节点编号、原始整数标记及其存在掩码。无Density、无伪造wall_distance、无把整数标记自动解释为边界/有效节点掩码。
+- metadata/<sample>.json：审计源身份、精度转换误差、块布局、目标统计及必要提示。
+- splits.json：相对缓存根目录的train/valid/test/baseline列表；不改变原validation成员。
+- train_statistics.json：仅训练集坐标界限和五场均值/标准差，缓存本身保留物理量，不提前标准化。
+- contract.json / plan.json / summary.json：字段、边界、来源与完成状态。全A级完成时cache_ready=true；不代表已实现下一步CR15训练适配。
+
+通道映射来自`configs/datasets/cr15_map_v1.json`：MAP八通道中取[1,2,3,0,4]得到u/v/w/静压/静温，不将湍流黏度、转捩量或比热比当密度。完整坐标必须来自审计确认的ofmeshplt.xyz，明确拒绝inmeshcfd.xyz。按原块序拼接，各块i最快、再j再k；节点ID为这一拼接顺序的零基编号，可结合块偏移/维数还原(i,j,k)。接口重复坐标和原始整数标记原样保留，不自行过滤或推断接口连接。MAP输出坐标按米记录，不套用CAD毫米缩放。
+
+固定边界向量为进口总压2500000Pa、进口总温1850K、进口气流角0度、湍流强度0.014、出口参考静压1314400Pa、转速0rpm；来源为交付README的统一求解设置，不能用清单里的实际ps_out_pa代替参考边界。叶片数42作为固定元数据。此数据主要检验几何变化，不能据此声称覆盖可变边界条件。本机无逐例原生边界输入文件，因此来源标记为数据集声明，不伪称已逐例解析验证。标签标记quasi_steady_not_convergence_certified。
+
+中断后复用已生成缓存：
+
+```bash
+bash scripts/submit_cr15_prepare.sh \
+  --root /实际路径/CR15_stator_400_MAP_results \
+  --audit /实际路径/已通过的审计报告目录 \
+  --output runs/cr15_prepared_v1 --workers 2 --resume
+```
+
+续跑对相同contract/审计源身份/split的完整单例直接复用，不重读原始网格/场；不完整单例重新转换。输出被标记failed/partial时不能作为完整训练缓存。可用`--samples CR15S_0001 CR15W_0001`在独立目录先做小样例，随后去掉--samples并--resume补齐A级；或用`--plan-only`只生成选择计划（不强制审计路径，不产出网格/场缓存）。路径迁移支持重复`--path-map OLD=NEW`，完整审计与manifest仍须对应同一数据集。
+
+本机真实402行清单的选择计划已生成于runs/cr15_preparation_plan_20261127；CR15S_0001、CR15W_0001的真实八场解析与独立审计逐块范围一致。本机缺ofmeshplt.xyz，未声称完成真实网格/末场配对转换；合成测试覆盖多块大小端格式、映射、输入网格拒绝、审计split一致性、原始标记保留、无求解量输入、train-only统计和缓存续跑。本机代表旧可视化metadata哈希不同于当前末场，故图/统计不作为标签来源，转换记录此类提示但以原审计指定末场为准。

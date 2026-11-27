@@ -1,0 +1,83 @@
+{
+  "scope": "steps1-3 only; no training",
+  "cpu_only": true,
+  "real_manifest": {
+    "total": 402,
+    "eligible_A": 250,
+    "train": 199,
+    "valid": 23,
+    "test": 26,
+    "baseline": 2,
+    "excluded_B": 152
+  },
+  "real_field_checks": [
+    {
+      "sample": "CR15S_0001",
+      "nodes": 420268,
+      "block_shapes": [
+        [
+          164,
+          25,
+          58
+        ],
+        [
+          20,
+          54,
+          58
+        ],
+        [
+          43,
+          12,
+          58
+        ],
+        [
+          31,
+          50,
+          58
+        ]
+      ],
+      "raw_channels": 8,
+      "output_channels": 5,
+      "raw_block_ranges_match_independent_auditor": true,
+      "visualization_source_hash_matches_current_solution": false
+    },
+    {
+      "sample": "CR15W_0001",
+      "nodes": 420384,
+      "block_shapes": [
+        [
+          165,
+          25,
+          58
+        ],
+        [
+          19,
+          54,
+          58
+        ],
+        [
+          43,
+          12,
+          58
+        ],
+        [
+          31,
+          51,
+          58
+        ]
+      ],
+      "raw_channels": 8,
+      "output_channels": 5,
+      "raw_block_ranges_match_independent_auditor": true,
+      "visualization_source_hash_matches_current_solution": false
+    }
+  ],
+  "synthetic_tests": "multi-block little/big endian, five-field mapping, original split policy, raw flags preserved, no solved quantities in features, train-only statistics, resume without source reads, input-grid/truncated-record rejection",
+  "local_limit": "No ofmeshplt.xyz in local delivery. Full conversion must consume existing cluster audit paths; no input-grid substitution.",
+  "plan": "runs/cr15_preparation_plan_20261127",
+  "boundary_source": "Delivered README uniform solver settings, not solved diagnostics",
+  "stale_visualization_policy": "Never use visualization field statistics or images as training labels; use audited final solution. Local representative visualization hashes differ from the current final field files.",
+  "synthetic_tests_passed": 3,
+  "raw_file_hash_checks_during_conversion": false,
+  "cluster_conversion_status": "Not executed here; requires audited ofmeshplt.xyz paths present on cluster"
+}
