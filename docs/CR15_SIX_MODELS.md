@@ -49,3 +49,11 @@ bash scripts/submit_cr15_models.sh --models Transolver_3
 UNet 和图模型默认 FP32；Transolver-3 默认 BF16（CPU 小样例已通过，X203 支持由容量作业实测）。UNet 的 CPU BF16 卷积检查耗时过长，因此不以它作为默认精度。
 
 本机验证使用 CPU 合成多块/变节点数数据；没有宣称在本机完整 CR15 数据或 X203 上完成六模型容量实测。
+
+## GeoTransolver 大学习率对照
+
+```bash
+bash scripts/submit_cr15_geo_lr2_long.sh
+```
+
+从头训练，独占2节点×8卡，base/BF16/global batch16，初始LR=2e-4，目标400轮；不设置100轮或更新次数的中途停止预算。保持原Adam betas、随机种子42、Plateau和early stop60；若触发早停，可能在400轮前结束。默认独立目录 `runs/cr15_geo_base_lr2_2nodes_400_<时间>_<PID>/GeoTransolver/`，日志 `logs/cr15_geo_lr2_long_<jobid>.out/.err`。可用 `CR15_PREPARED` 指定准备数据，用 `CR15_LR2_RUN_ROOT` 指定新实验目录；已有检查点时拒绝覆盖。默认4小时Slurm时限，可追加 `--time=08:00:00` 等调度参数。不会继承旧实验的resume、max-updates、100轮预算或其他模型名称。
