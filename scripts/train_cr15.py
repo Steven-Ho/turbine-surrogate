@@ -1,4 +1,4 @@
-"""Train GeoTransolver on prepared A-grade CR15 five-field caches."""
+"""Train seven models on prepared A-grade CR15 five-field caches."""
 import argparse
 from datetime import timedelta
 import os
@@ -6,11 +6,19 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 from tfai.benchmarks.cr15 import load_prepared
+from tfai.benchmarks.cr15_models import MODELS
 from tfai.benchmarks.cr15_training import train
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--model',choices=MODELS,default='GeoTransolver')
+    p.add_argument('--grid',type=int,default=64)
+    p.add_argument('--pod-rank',type=int,default=32)
+    p.add_argument('--geometry-bins',type=int,default=256)
+    p.add_argument('--graph-owner-nodes',type=int,default=32768)
+    p.add_argument('--graph-edge-chunk',type=int,default=131072)
+    p.add_argument('--model-cache',type=Path,default=Path('runs/cr15_model_cache_v1'))
     p.add_argument('--prepared',type=Path,default=Path('runs/cr15_prepared_v1'))
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--device',choices=['cuda','cpu'],default='cuda')
@@ -41,6 +49,9 @@ def main():
     if not 0<=args.beta1<1 or not 0<=args.beta2<1 or not 0<args.min_lr<=args.learning_rate or args.grad_clip<=0:p.error('Invalid optimizer setting')
     if args.seed<0:p.error('seed must be nonnegative')
     if args.lr_patience<0 or args.lr_cooldown<0 or not 0<args.lr_factor<1 or args.lr_threshold<0:p.error('Invalid LR scheduler settings')
+    if args.grid<32 or args.grid%16:p.error('UNet grid must be >=32 and divisible by 16')
+    if min(args.pod_rank,args.geometry_bins,args.graph_owner_nodes,args.graph_edge_chunk)<1:p.error('Model sizes must be positive')
+    if args.offload and args.model!='GeoTransolver':p.error('--offload is currently GeoTransolver-only')
     torch.set_num_threads(args.threads)
     if args.device=='cuda':
         if not torch.cuda.is_available():raise RuntimeError('GPU unavailable; no silent CPU fallback')
@@ -59,8 +70,11 @@ def main():
             prepared=packet[0]['prepared']
         else:prepared=load_prepared(args.prepared)
         excluded=['prepared','output','device','backend','resume','epoch_budget','max_updates','stop_file']
-        config={k:v for k,v in vars(args).items() if k not in excluded}
-        train(prepared,config,args.output/'GeoTransolver',device,args.resume,args.epoch_budget,args.max_updates,args.stop_file)
+        config={k:(str(v.resolve()) if isinstance(v,Path) else v) for k,v in vars(args).items() if k not in excluded}
+        if args.model=='GeoTransolver':
+            # Preserve the existing GeoTransolver resume contract, unchanged.
+            for key in ['model','grid','pod_rank','geometry_bins','graph_owner_nodes','graph_edge_chunk','model_cache']:config.pop(key)
+        train(prepared,config,args.output/args.model,device,args.resume,args.epoch_budget,args.max_updates,args.stop_file)
     finally:
         if dist.is_initialized():dist.destroy_process_group()
 

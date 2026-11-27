@@ -17,8 +17,8 @@ import numpy as np
 import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch_geometric.data import Data
-from .cr15 import FIELDS,UNITS,CR15Normalizer,CR15Store,CR15GeoTransolver
+from .cr15 import FIELDS,UNITS,CR15Normalizer,CR15Store
+from .cr15_models import make_model,model_input
 from .fann_ddp import local_rng,restore_local_rng
 from .fann_logging import print
 from .fann_training import atomic_json,RunLockedError
@@ -51,7 +51,7 @@ def evaluate(model,norm,prepared,split,device,output=None,stop=lambda:False):
             if stop():return None
             index=start+rank
             if index<len(store):
-                sample=store[index];prediction=model(norm.input(sample,device))
+                sample=store[index];prediction=model(model_input(model,norm,sample,device))
                 if prediction.shape!=sample['targets'].shape or not torch.isfinite(prediction).all():raise ValueError('Invalid prediction')
                 normalized_sse=float((prediction-norm.target(sample,device)).double().square().sum())
                 physical=norm.decode(prediction);truth=sample['targets'];n=len(truth)
@@ -99,6 +99,7 @@ def train(prepared,config,folder,device,resume=False,epoch_budget=0,max_updates=
 
 def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_file):
     rank,world=topology();last=folder/'last.pt';best_path=folder/'best.pt'
+    name=config.get('model','GeoTransolver')
     if world>config['batch_cases']:raise ValueError('GPU count exceeds configured global batch_cases')
     if not resume and (last.exists() or best_path.exists()):raise ValueError('Existing experiment: use --resume or a new output')
     saved=torch.load(last,map_location='cpu',weights_only=False) if resume else None
@@ -115,7 +116,7 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
         normalization=norm.state(),fields=FIELDS,units=UNITS,world_size=world,
         input_names=['x','y','z']+prepared['contract']['boundary_names']),folder/'configuration.json')
     set_global_seed(config['seed'])
-    model=CR15GeoTransolver(config['scale'],config['amp'],config['chunk'],config['offload']).to(device)
+    model=make_model(prepared,config,saved).to(device)
     if saved:model.load_state_dict(saved['state_dict'],strict=True)
     ddp=DDP(model,device_ids=[device.index] if device.type=='cuda' else None) if world>1 else None
     optimizer=torch.optim.Adam(model.parameters(),lr=config['learning_rate'],betas=(config['beta1'],config['beta2']))
@@ -148,13 +149,13 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
         return dict(rank=rank,host=socket.gethostname(),device=str(device),torch=torch.__version__,gpu_peak_GiB=torch.cuda.max_memory_allocated(device)/1024**3 if device.type=='cuda' else 0.,
                     process_peak_RSS_GiB=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024**2)
     def status(state,**extra):
-        if rank==0:atomic_json(dict(state=state,model='GeoTransolver',dataset='CR15',completed_epochs=epoch,
+        if rank==0:atomic_json(dict(state=state,model=name,dataset='CR15',completed_epochs=epoch,
             global_step=step,position=position,world_size=world,global_batch_cases=config['batch_cases'],
             best_validation_loss=best if math.isfinite(best) else None,**extra),folder/'status.json')
     def save(path):
         states=gather(local_rng(device))
         if rank==0:
-            atomic_torch_save(dict(schema='cr15-training-v1',model='GeoTransolver',fields=FIELDS,
+            atomic_torch_save(dict(schema='cr15-training-v1',model=name,fields=FIELDS,
                 cache_identity=prepared['identity'],config=config,normalization=norm.state(),
                 state_dict=model.state_dict(),optimizer_state_dict=optimizer.state_dict(),scheduler_state_dict=scheduler.state_dict(),
                 completed_epochs=epoch,position=position,global_step=step,best_score=best,early_stopping_counter=bad,
@@ -168,7 +169,7 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
         return dict(state='interrupted',stop_reason=reason,global_step=step)
     try:
         if rank==0:
-            print(f'CR15 GeoTransolver scale={config["scale"]} fields=5 global_conditions=6 world_size={world} global_batch<={config["batch_cases"]} full cases; gradient accumulation, node-weighted loss; amp={config["amp"]}',flush=True)
+            print(f'CR15 {name} scale={config["scale"]} fields=5 global_conditions=6 world_size={world} global_batch<={config["batch_cases"]} full cases; gradient accumulation, node-weighted loss; amp={config["amp"]}',flush=True)
             print(f'CR15 cache reused: train={len(stores["train"])} valid={len(stores["valid"])} test={len(stores["test"])} baseline={len(stores["baseline"])}; train-only statistics; no raw-file scan',flush=True)
             print(f'Adam lr={optimizer.param_groups[0]["lr"]} betas={optimizer.param_groups[0]["betas"]}; LR patience={config["lr_patience"]} threshold={config["lr_threshold"]}',flush=True)
         status('training');save(last)
@@ -191,11 +192,12 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
                     with context:
                         if slot<len(selected):
                             sample=stores['train'][selected[slot]]
-                            prediction=(ddp or model)(norm.input(sample,device))
+                            prediction=(ddp or model)(model_input(model,norm,sample,device))
                             target=norm.target(sample,device)
                             squared=(prediction-target).square().sum()
                         else:
-                            prediction=(ddp or model)(Data(x=torch.zeros(8,9,device=device)))
+                            dummy=stores['train'][order[0]]
+                            prediction=(ddp or model)(model_input(model,norm,dummy,device))
                             squared=prediction.sum()*0.
                         # DDP divides gradients by world; undo that once, including tail batches.
                         (squared*(world/elements)).backward()
@@ -207,7 +209,7 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
                 step+=1;updates+=1;position+=len(selected)
                 pending_sum+=float(total_squared);pending_elements+=elements
                 if rank==0 and (step%config['log_every']==0 or position==len(order)):
-                    print(f'CR15 GeoTransolver epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/config["batch_cases"])}/{math.ceil(len(order)/config["batch_cases"])} step={step} cases={position}/{len(order)} batch_cases={len(selected)} loss={float(total_squared)/elements:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} rank0_seconds={time.perf_counter()-batch_started:.3f} peak_GiB={capacity()["gpu_peak_GiB"]:.3f}',flush=True)
+                    print(f'CR15 {name} epoch={epoch+1}/{config["epochs"]} batch={math.ceil(position/config["batch_cases"])}/{math.ceil(len(order)/config["batch_cases"])} step={step} cases={position}/{len(order)} batch_cases={len(selected)} loss={float(total_squared)/elements:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} rank0_seconds={time.perf_counter()-batch_started:.3f} peak_GiB={capacity()["gpu_peak_GiB"]:.3f}',flush=True)
                 if updates%config['checkpoint_every']==0:save(last);status('training')
             if max_updates is not None and updates>=max_updates:return interrupted('update_budget')
             valid=evaluate(model,norm,prepared,'valid',device,stop=wants_stop)
@@ -223,7 +225,7 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
             save(last)
             if rank==0:
                 atomic_json(history,folder/'history.json')
-                print(f'CR15 GeoTransolver epoch={epoch}/{config["epochs"]} step={step} train={history[-1]["train_loss"]:.7g} val={value:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} bad={bad}/{config["patience"]}',flush=True)
+                print(f'CR15 {name} epoch={epoch}/{config["epochs"]} step={step} train={history[-1]["train_loss"]:.7g} val={value:.7g} lr={optimizer.param_groups[0]["lr"]:.4g} bad={bad}/{config["patience"]}',flush=True)
             status('training')
             if epoch_budget and epoch-initial_epoch>=epoch_budget:return interrupted('epoch_budget')
         training_seconds=elapsed+time.perf_counter()-started;finalizing=True
@@ -236,7 +238,7 @@ def _train(prepared,config,folder,device,resume,epoch_budget,max_updates,stop_fi
             if result is None:return interrupted('signal_or_stop_file')
             metrics['validation' if split=='valid' else split]=result
         stats=gather(capacity())
-        report=dict(state='complete',model='GeoTransolver',dataset='CR15',completed_epochs=epoch,
+        report=dict(state='complete',model=name,dataset='CR15',completed_epochs=epoch,
             optimizer_steps=step,best_epoch=checkpoint['completed_epochs'],fields=FIELDS,units=UNITS,config=config,
             training_seconds=training_seconds,early_stopped=bad>=config['patience'],capacity=stats,
             cache_identity=prepared['identity'],selection='Minimum complete-validation normalized MSE; test/baseline only after selection',

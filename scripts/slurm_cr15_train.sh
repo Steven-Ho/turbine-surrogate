@@ -39,7 +39,10 @@ elif [[ "${CR15_GPUS_PER_NODE:-1}" -gt 1 ]]; then
 else
   launch=(srun --export=ALL --ntasks=1 --kill-on-bad-exit=1 python)
 fi
-"${launch[@]}" scripts/train_cr15.py --prepared "$CR15_PREPARED" --output "$CR15_RUN_ROOT" \
+"${launch[@]}" scripts/train_cr15.py --model "${CR15_MODEL:-GeoTransolver}" --prepared "$CR15_PREPARED" --output "$CR15_RUN_ROOT" \
+ --grid "${CR15_GRID:-64}" --pod-rank "${CR15_POD_RANK:-32}" \
+ --geometry-bins "${CR15_GEOMETRY_BINS:-256}" --model-cache "${CR15_MODEL_CACHE:-$PWD/runs/cr15_model_cache_v1}" \
+ --graph-owner-nodes "${CR15_GRAPH_OWNER_NODES:-32768}" --graph-edge-chunk "${CR15_GRAPH_EDGE_CHUNK:-131072}" \
  --scale "${CR15_SCALE:-base}" --amp "${CR15_AMP:-bf16}" --batch-cases "${CR15_BATCH_CASES:-16}" \
  --epochs "${CR15_EPOCHS:-400}" --epoch-budget "${CR15_EPOCH_BUDGET:-5}" --threads 4 \
  --learning-rate "${CR15_LEARNING_RATE:-0.0001}" --chunk 32768 \
@@ -54,4 +57,13 @@ while true; do
  result=$?
  if ((wait_interrupted==0)); then break; fi
 done
+if [[ "$result" == 0 && "${CR15_CAPACITY_CHECK:-0}" == 1 ]]; then
+ python - "$CR15_RUN_ROOT/${CR15_MODEL:-GeoTransolver}/status.json" <<'PY_CHECK'
+import json,sys
+status=json.load(open(sys.argv[1]))
+if status.get('global_step',0)<1 or status.get('stop_reason')!='update_budget':
+    raise SystemExit('Capacity check did not finish one full optimizer update; dependent training must not start')
+PY_CHECK
+ result=$?
+fi
 exit "$result"
