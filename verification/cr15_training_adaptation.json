@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-27",
+  "validation": "CPU only; GPU not used",
+  "prepared_schema": "cr15-map-five-fields-v1",
+  "inputs": "3 train-normalized coordinates + 6 declared fixed boundary conditions",
+  "outputs": [
+    "VelocityX",
+    "VelocityY",
+    "VelocityZ",
+    "Pressure",
+    "Temperature"
+  ],
+  "normalization": "training moments only, physical-unit frozen-checkpoint metrics",
+  "global_batch": "16 whole cases independent of rank count via accumulation; actual node-element-weighted gradients; tail batches preserved",
+  "tests": {
+    "main_regression_tests": 7,
+    "main_regression_seconds": 59.412,
+    "main_result": "passed",
+    "dependency_submission": "passed",
+    "coverage": [
+      "single-GPU accumulation vs two-rank DDP parameter and gradient parity",
+      "exact same-topology checkpoint resume",
+      "five-field frozen validation/test/baseline metrics and physical prediction NPZ",
+      "largest-train-case BF16 capacity check does not read test labels",
+      "DDP tail sample/test counts",
+      "capacity and short submission isolation from faNN settings",
+      "five-field compact visual summary",
+      "existing faNN six-field visual summary and domain gradient regression"
+    ],
+    "additional_checks": [
+      "Slurm afterok capacity-to-short dependency (passed)",
+      "Changing per-case targets leaves input features unchanged (passed)"
+    ]
+  },
+  "cluster_commands": [
+    "bash scripts/submit_cr15_check_and_short.sh"
+  ],
+  "cluster_status": "Prepared cache is complete on cluster per user; this implementation has not run on X203 yet",
+  "scope": "GeoTransolver base single-GPU probe and fixed-effective-batch short training; native DDP supported, no CR15 domain parallelism; existing faNN six-field path unchanged",
+  "default_scheduler": {
+    "patience": 20,
+    "threshold": 0.001,
+    "cooldown": 5,
+    "factor": 0.5,
+    "min_lr": 1e-06
+  },
+  "no_fabricated_features_or_metrics": [
+    "Density",
+    "wall_distance",
+    "near_wall_rmse",
+    "solved monitor quantities as inputs"
+  ]
+}

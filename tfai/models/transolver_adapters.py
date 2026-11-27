@@ -63,14 +63,15 @@ class GeoTransolver(nn.Module):
             from physicsnemo.experimental.models.geotransolver import GeoTransolver as OfficialGeoTransolver
         else:
             raise ValueError("geotransolver_backend must be physicsnemo or portable_torch")
-        if input_dim<5: raise ValueError("Expected xyz, optional nodal features and two global conditions")
+        self.global_dim=int(config["model"].get("global_dim",2))
+        if self.global_dim<1 or input_dim<3+self.global_dim: raise ValueError("Expected xyz, optional nodal features and global conditions")
         if config.get("training",{}).get("graph_use_partition",False):
             raise ValueError("GeoTransolver requires whole-case geometry/global context")
         self.input_dim=input_dim
         s=SCALES[config["model"]["scale"]]
         self.activation_offload=False
-        self.model=OfficialGeoTransolver(functional_dim=input_dim-2,out_dim=output_dim,
-            geometry_dim=3,global_dim=2,n_layers=s["layers"],n_hidden=s["hidden"],
+        self.model=OfficialGeoTransolver(functional_dim=input_dim-self.global_dim,out_dim=output_dim,
+            geometry_dim=3,global_dim=self.global_dim,n_layers=s["layers"],n_hidden=s["hidden"],
             n_head=s["heads"],slice_num=s["slices"],mlp_ratio=2,dropout=0.,use_te=False,
             include_local_features=True,radii=[0.05,0.25],neighbors_in_radius=[8,32],n_hidden_local=16)
 
@@ -82,15 +83,15 @@ class GeoTransolver(nn.Module):
                 domain.full_xyz=x[:,:3].contiguous()
                 x=domain.select(x)
             xyz=x[:,:3].unsqueeze(0)
-            conditions=x[:1,-2:].unsqueeze(0)
-            if not torch.allclose(x[:,-2:],x[:1,-2:].expand(x.shape[0],-1)):
-                raise ValueError("Omega/P must be constant across nodes within a case")
+            conditions=x[:1,-self.global_dim:].unsqueeze(0)
+            if not torch.allclose(x[:,-self.global_dim:],x[:1,-self.global_dim:].expand(x.shape[0],-1)):
+                raise ValueError("Global conditions must be constant across nodes within a case")
             # Preserve global attention; restore saved tensors on demand in backward.
             # Avoid pinning the entire full-domain tape in locked host RAM.
             offload=(self.activation_offload and self.training and torch.is_grad_enabled()
                      and x.device.type=='cuda')
             with torch.autograd.graph.save_on_cpu(pin_memory=False) if offload else nullcontext():
-                outputs.append(self.model(x[:,:-2].unsqueeze(0),local_positions=xyz,
+                outputs.append(self.model(x[:,:-self.global_dim].unsqueeze(0),local_positions=xyz,
                     global_embedding=conditions,geometry=xyz).squeeze(0))
         result=torch.cat(outputs,dim=0)
         if getattr(self,'domain',None) is not None and not self.training:

@@ -36,6 +36,7 @@ def discover(path):
         if not (folder/'report.json').is_file():raise ValueError(f'Missing report.json in {folder}')
         return folder
     found=sorted(p.parent for p in Path('runs').glob('fann_geo_domain4_8nodes_*/GeoTransolver/report.json'))
+    found+=sorted(p.parent for p in Path('runs').glob('cr15_geo_*/GeoTransolver/report.json'))
     if len(found)!=1:raise ValueError('Specify --run-root: expected exactly one completed domain run')
     return found[0]
 
@@ -84,10 +85,11 @@ def training_plots(history, out):
     rows=[dict(epoch=r['epoch'],step=r.get('global_step'),train_mse=r['train_loss'],val_mse=r['val_loss'],lr=r['lr']) for r in history]
     write_csv(out/'training.csv',rows)
     images=['training.png']
-    if all(len(r.get('validation_rmse',[]))==6 for r in history):
+    if all(len(r.get('validation_rmse',[]))==len(FIELDS) for r in history):
         values=np.asarray([r['validation_rmse'] for r in history])
         fig,axes=plt.subplots(2,3,figsize=(12,6),constrained_layout=True)
         for i,ax in enumerate(axes.flat):
+            if i>=len(FIELDS):ax.set_visible(False);continue
             ax.plot(x,values[:,i]);ax.set(title=FIELDS[i],xlabel='Epoch',ylabel=f'Validation RMSE ({UNITS[i]})');ax.grid(alpha=.2)
         fig.savefig(out/'field_validation_rmse.png',dpi=150);plt.close(fig);images.append('field_validation_rmse.png')
     return images
@@ -111,7 +113,7 @@ def visualize_case(row, score, folder, out, index, args, mappings):
     xyz,truth,ids=source_arrays(source)
     with np.load(prediction_path,allow_pickle=False) as data:
         predicted=data['prediction'];prediction_ids=data['original_node_ids'];names=data['output_names'].tolist()
-    if names!=FIELDS or truth.shape!=predicted.shape or truth.shape!=(len(xyz),6):raise ValueError('Field/order/shape mismatch')
+    if names!=FIELDS or truth.shape!=predicted.shape or truth.shape!=(len(xyz),len(FIELDS)):raise ValueError('Field/order/shape mismatch')
     if not np.array_equal(ids,prediction_ids):raise ValueError('Prediction/truth original node IDs differ; refusing misaligned plots')
     # Validate only this selected pair; no dataset scan or file fingerprint pass.
     rng=np.random.default_rng(args.seed+index)
@@ -145,6 +147,7 @@ def visualize_case(row, score, folder, out, index, args, mappings):
         name=f'{prefix}_{field}.png';fig.savefig(out/name,dpi=140);plt.close(fig);images.append(name)
     fig,axes=plt.subplots(2,3,figsize=(11,6),constrained_layout=True)
     for j,ax in enumerate(axes.flat):
+        if j>=len(FIELDS):ax.set_visible(False);continue
         a=compact['truth'][:,j];b=compact['prediction'][:,j]
         ax.hexbin(a,b,gridsize=45,mincnt=1,bins='log',cmap='viridis')
         lo=min(float(a.min()),float(b.min()));hi=max(float(a.max()),float(b.max()))
@@ -161,6 +164,7 @@ def visualize_case(row, score, folder, out, index, args, mappings):
 
 
 def main():
+    global FIELDS,UNITS
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-root',type=Path)
     parser.add_argument('--output',type=Path)
@@ -171,7 +175,7 @@ def main():
     parser.add_argument('--slice-axis',choices=list('xyz'),default='z')
     parser.add_argument('--slice-fraction',type=float,default=.5)
     parser.add_argument('--slice-width',type=float,default=.01)
-    parser.add_argument('--fields',nargs='+',choices=FIELDS,default=FIELDS)
+    parser.add_argument('--fields',nargs='+',choices=FIELDS)
     parser.add_argument('--seed',type=int,default=42)
     parser.add_argument('--path-map',action='append',default=[],metavar='OLD=NEW')
     args=parser.parse_args()
@@ -186,7 +190,11 @@ def main():
     output.mkdir(parents=True,exist_ok=False)
     report=json.loads((folder/'report.json').read_text())
     if report.get('state')!='complete':raise ValueError('Only a completed report can be summarized')
-    if report.get('fields')!=FIELDS:raise ValueError('Unexpected report fields')
+    fields=report.get('fields')
+    if fields not in [FIELDS,FIELDS[:-1]]:raise ValueError('Unexpected report fields')
+    units=dict(zip(FIELDS,UNITS));FIELDS=fields;UNITS=[units[f] for f in FIELDS]
+    if args.fields is None:args.fields=FIELDS
+    if any(f not in FIELDS for f in args.fields):raise ValueError('Requested field absent from this dataset')
     history=json.loads((folder/'history.json').read_text()) if (folder/'history.json').is_file() else []
     plt.rcParams.update({'font.size':9,'axes.spines.top':False,'axes.spines.right':False})
     images=training_plots(history,output)

@@ -190,3 +190,51 @@ bash scripts/submit_cr15_prepare.sh \
 续跑对相同contract/审计源身份/split的完整单例直接复用，不重读原始网格/场；不完整单例重新转换。输出被标记failed/partial时不能作为完整训练缓存。可用`--samples CR15S_0001 CR15W_0001`在独立目录先做小样例，随后去掉--samples并--resume补齐A级；或用`--plan-only`只生成选择计划（不强制审计路径，不产出网格/场缓存）。路径迁移支持重复`--path-map OLD=NEW`，完整审计与manifest仍须对应同一数据集。
 
 本机真实402行清单的选择计划已生成于runs/cr15_preparation_plan_20261127；CR15S_0001、CR15W_0001的真实八场解析与独立审计逐块范围一致。本机缺ofmeshplt.xyz，未声称完成真实网格/末场配对转换；合成测试覆盖多块大小端格式、映射、输入网格拒绝、审计split一致性、原始标记保留、无求解量输入、train-only统计和缓存续跑。本机代表旧可视化metadata哈希不同于当前末场，故图/统计不作为标签来源，转换记录此类提示但以原审计指定末场为准。
+
+
+## CR15 GeoTransolver五场训练适配
+
+读取已完成的`runs/cr15_prepared_v1`，固定199/23/26/2原划分，不接触原MAP文件、不重复原数据登记或哈希核查。独立入口`scripts/train_cr15.py`与`tfai.benchmarks.cr15`使用train_statistics.json的训练集统计；输入为归一化坐标加6项声明边界条件，输出u/v/w/静压/静温五场。无密度推导、无求解监视量输入、无伪造壁距/近壁指标。保持原块节点及接口重复点，不解释尚未确认语义的整数标记。原faNN六场入口和FANN_SPLITS不变。
+
+先在集群依次运行容量检查和5轮短训，支持一键带依赖提交：
+
+```bash
+git pull
+bash scripts/submit_cr15_check_and_short.sh
+```
+
+该命令提交两个单卡任务，短训带`afterok`依赖，容量检查失败时不会启动。也可以分别提交：
+
+```bash
+bash scripts/submit_cr15_capacity.sh
+# 查看容量任务成功结束及峰值显存后：
+bash scripts/submit_cr15_short.sh
+```
+
+默认CR15_PREPARED为项目下runs/cr15_prepared_v1；可提前export CR15_PREPARED为其他完整缓存目录。两个任务都用base、BF16、32768节点分块、关闭CPU卸载，申请1GPU、8CPU、32G主存。容量任务按节点数降序取两个最大训练算例做真实前反向/Adam更新，每次一例，计划保存退出；不读取验证/测试/基准标签，也不把这两步的权重传给短训。结果runs/cr15_geo_base_capacity_<时间>/GeoTransolver/status.json中有逐rank峰值显存和CPU主存；日志logs/cr15_capacity_<job>.out/.err。
+
+短训从seed42新模型开始，单卡梯度累积16个完整算例后更新，有效batch最多16。199例每轮13次更新（12×16+7），5轮65次更新；只验证、不进行最终测试选择/导出。结果runs/cr15_geo_base_short_<时间>/GeoTransolver，日志logs/cr15_short_<job>.out/.err。每次更新打印时间戳、loss、lr、rank0_seconds和峰值显存，每轮保存last.pt，最优验证保存best.pt。到达epoch_budget计划停止并正常退出0。可通过CR15_CAPACITY_ROOT和CR15_SHORT_ROOT分别指定新的独立目录。
+
+CR15独立默认超参数：Adam lr1e-4、betas=(0.9,0.999)、grad_clip1；ReduceLROnPlateau patience20、relative threshold0.001、cooldown5、factor0.5、min_lr1e-6；早停60。相比原faNN采取更缓慢的调度，不修改现有faNN运行。总目标400轮，epoch_budget5只限制当前启动轮数。
+
+短训验证后，可在匹配配置下续训至总400轮（此命令才会启动长训）：
+
+```bash
+export CR15_RUN_ROOT=runs/cr15_geo_base_short_<原时间>
+export CR15_PREPARED="$PWD/runs/cr15_prepared_v1"
+export CR15_RESUME=1 CR15_EPOCH_BUDGET=0 CR15_BATCH_CASES=16
+unset CR15_MAX_UPDATES
+sbatch --time=1-00:00:00 --export=ALL scripts/slurm_cr15_train.sh
+```
+
+保持base/BF16/原优化器与调度超参数；不要将单卡capacity目录或faNN检查点误作正式续训。墙钟保护仍为提前15分钟USR1，完成全局batch后安全保存，保留已完成的epoch与未完成epoch的位置和累计loss。原400轮目标可以在CLI中指定；中断续训不重置优化器/调度器/RNG。相同拓扑CPU已验证权重和历史精确一致。改变GPU数时仍保留有效batch，但不承诺浮点训练轨迹相同。
+
+可选单/多节点DDP入口仍是slurm_cr15_train.sh：例如8卡节点设CR15_GPUS_PER_NODE=8并用sbatch --nodes=1 --gres=gpu:8；两节点各8卡则--nodes=2 --gres=gpu:8。CR15_BATCH_CASES仍为16，相应减少累积次数，GPU数不能大于global batch；真实尾批允许空闲rank零梯度参与。梯度按每批所有实际节点元素归一化，不平均逐算例RMSE，不复制/丢弃训练算例。此阶段未启用CR15域并行，先用较小的CR15网格验证单卡容量。
+
+正常完成总训练或早停后，冻结best.pt，依次评估验证集、测试集和独立baseline，输出report.json中的五场RMSE/MAE/R²及原节点编号对齐的物理单位预测NPZ；标签仍标quasi_steady_not_convergence_certified。现有CPU可视化入口支持五场与六场：
+
+```bash
+bash scripts/submit_fann_visualize.sh --run-root "$CR15_RUN_ROOT"
+```
+
+仅在有complete report.json时运行。近壁指标在CR15中明确缺省，因为未提供经过确认的壁距/壁面标签。CPU回归覆盖单卡累积与DDP梯度一致、变节点数和尾批、完整五场指标、最大训练例容量探测不读测试标签、精确续训、五场预测可视化，以及原faNN六场/域并行兼容。X203真实显存/耗时需运行上述单卡检查确认。
