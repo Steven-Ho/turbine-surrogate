@@ -250,3 +250,23 @@ bash scripts/submit_cr15_2nodes_one_epoch.sh
 独占2节点，每节点8卡、32CPU、64G主存，申请2小时。GeoTransolver base、BF16、关闭CPU卸载、lr1e-4，有效batch最多16，每卡每次1个完整算例；不进行网格域分片。新开seed42实验，不续用单卡短训的权重。原199训练例每轮13次更新（12×16+7），尾批9个空闲rank仍参与必要零梯度同步。完整训练和23例验证后按epoch_budget=1安全保存退出0，不跑最终测试导出，总目标仍保留400供后续续训。
 
 默认缓存runs/cr15_prepared_v1，输出runs/cr15_geo_base_2nodes_1epoch_<时间>/GeoTransolver；可用CR15_TWO_NODE_ROOT指定新的独立目录。日志logs/cr15_2n1ep_<job>.out/.err。检查启动world_size=16、global_batch<=16，结尾epoch=1/400 step=13和stop_reason=epoch_budget；将含验证/保存的完整墙钟与单卡对比，首次邻域缓存生成的时间应单独考虑。CPU模拟提交验证资源、原超参数、独立输出及残留变量覆盖，实际双节点运行由集群执行上述命令完成。
+
+
+### CR15两节点16卡：从1轮短训续训至总400轮
+
+两节点1轮任务成功保存后：
+
+```bash
+git pull
+bash scripts/submit_cr15_2nodes_long.sh
+```
+
+自动定位唯一已安全停止的runs/cr15_geo_base_2nodes_1epoch_*实验，按status/history/configuration JSON核对CR15、16rank、batch16、base/BF16和原配置，不在登录节点导入Torch，也不重新扫描原MAP数据。多个候选时明确指定：
+
+```bash
+bash scripts/submit_cr15_2nodes_long.sh --run-root runs/cr15_geo_base_2nodes_1epoch_<原时间>
+```
+
+恢复原last.pt中的模型、Adam、调度器、RNG及未完成epoch位置；已完成1轮则剩余最多399轮，总训练目标400轮（最多5200次更新），原早停60保留。禁用epoch_budget/max_updates短训限制，结束后冻结最佳验证检查点并执行五场验证/测试/独立baseline评估及预测导出。结果仍在原目录，日志logs/cr15_2n_long_<job>.out/.err。
+
+独占2节点×8卡，每节点32CPU、64G主存，默认24小时墙钟（CR15_TIME_LIMIT或命令尾--time可覆盖），提前15分钟USR1安全保存。超时安全中断后可对同一目录重复提交续训；如果400轮已训练完而最终评估中断，入口也允许恢复后仅完成评估。原slurm_cr15_train.sh在计算节点继续做完整checkpoint/cache一致性检查。CPU模拟提交已覆盖拓扑、原配置、预算清除和拒绝误用单卡实验，真正的集群提交由上述命令发起。
